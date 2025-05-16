@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stream Alone - 登录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                screens: {
+                    'xs': '400px',
+                    'sm': '640px',
+                    'md': '768px',
+                    'lg': '1024px',
+                    'xl': '1280px',
+                    '2xl': '1536px',
+                }
+            }
+        }
+    </script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-bg: #ffffff;
+            --secondary-bg: #ffffff;
+            --border-color: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --accent-color: #3b82f6;
+            --icon-color: #374151;
+            --hover-bg: #f3f4f6;
+            --checkbox-bg: #fff;
+            --checkbox-border: #d1d5db;
+        }
+
+        .dark {
+            --primary-bg: #111111;
+            --secondary-bg: #111111;
+            --border-color: #2a2a2a;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --accent-color: #3b82f6;
+            --icon-color: #d1d5db;
+            --hover-bg: #262626;
+            --checkbox-bg: #1a1a1a;
+            --checkbox-border: #4b5563;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast-notification.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .toast-notification .icon {
+            font-size: 18px;
+        }
+
+        .toast-notification .close-btn {
+            margin-left: 10px;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            opacity: 0.7;
+        }
+
+        .toast-notification .close-btn:hover {
+            opacity: 1;
+        }
+
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 30px var(--primary-bg) inset !important;
+            -webkit-text-fill-color: var(--text-primary) !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+
+        .input-field {
+            padding-left: 2.5rem !important;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .custom-checkbox {
+            position: relative;
+            display: flex;
+            align-items: center;
+            user-select: none;
+        }
+
+        .custom-checkbox input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+
+        .checkmark {
+            height: 18px;
+            width: 18px;
+            background-color: var(--checkbox-bg);
+            border: 1px solid var(--checkbox-border);
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .custom-checkbox input:checked~.checkmark {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .checkmark:after {
+            content: '';
+            display: none;
+            width: 5px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            position: relative;
+            top: -1px;
+        }
+
+        .custom-checkbox input:checked~.checkmark:after {
+            display: block;
+        }
+
+        .theme-toggle-floating {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+
+        @media (max-width: 640px) {
+            .theme-toggle-floating {
+                top: 12px;
+                right: 12px;
+            }
+        }
+
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear,
+        input[type="password"]::-webkit-contacts-auto-fill-button,
+        input[type="password"]::-webkit-credentials-auto-fill-button {
+            display: none !important;
+            visibility: hidden;
+            pointer-events: none;
+            position: absolute;
+            right: 0;
+        }
+
+        ::-ms-reveal {
+            display: none !important;
+        }
+
+        input[type="password"] {
+            padding-right: 2.5rem !important;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col justify-between min-h-screen">
+    <div id="errorToast" class="toast-notification">
+        <i class="fas fa-exclamation-circle icon text-red-500"></i>
+        <span id="errorMessage">登录失败，请检查您的用户名和密码</span>
+        <button class="close-btn">&times;</button>
+    </div>
+
+    <div class="flex-1 flex items-center justify-center px-4 py-8 relative">
+        <button id="themeToggle"
+            class="theme-toggle-floating w-9 h-9 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors">
+            <i id="themeIcon" class="fas fa-moon text-[var(--icon-color)]"></i>
+        </button>
+
+        <div class="w-full max-w-md">
+            <div class="text-center mb-8">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-1">Stream Alone</h1>
+                <p class="text-[var(--text-secondary)] text-sm sm:text-base">登录您的账户</p>
+            </div>
+
+            <form id="loginForm" class="space-y-5 p-6 rounded-lg">
+                <div class="input-group">
+                    <i class="fas fa-user input-icon"></i>
+                    <input type="text" id="username" name="username"
+                        class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
+                        placeholder="用户名">
+                </div>
+
+                <div class="input-group">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" id="password" name="password"
+                        class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
+                        placeholder="密码">
+                    <span class="password-toggle" id="togglePassword">
+                        <i class="fas fa-eye"></i>
+                    </span>
+                </div>
+
+                <div class="flex items-center">
+                    <label class="custom-checkbox flex items-center">
+                        <input type="checkbox" id="remember" name="remember">
+                        <span class="checkmark mr-2"></span>
+                        <span class="text-sm text-[var(--text-secondary)]">记住我</span>
+                    </label>
+                </div>
+
+                <button type="submit" id="loginBtn"
+                    class="w-full py-3 bg-[var(--accent-color)] text-white rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center">
+                    <span id="loginText">登录</span>
+                    <span id="loginSpinner" class="hidden">
+                        <i class="fas fa-circle-notch fa-spin ml-2"></i>
+                    </span>
+                </button>
+            </form>
+
+            <div class="mt-4 text-center">
+                <p class="text-[var(--text-secondary)] text-sm">
+                    还没有账户? <a href="#" id="registerLink" class="text-[var(--accent-color)] hover:underline">注册</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            const themeToggle = $('#themeToggle');
+            const themeIcon = $('#themeIcon');
+
+            if (localStorage.getItem('theme') === 'dark' ||
+                (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                themeIcon.removeClass('fa-moon').addClass('fa-sun');
+            }
+
+            themeToggle.on('click', function () {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    themeIcon.removeClass('fa-sun').addClass('fa-moon');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    themeIcon.removeClass('fa-moon').addClass('fa-sun');
+                }
+            });
+
+            $('#togglePassword').on('click', function () {
+                const passwordInput = $('#password');
+                const icon = $(this).find('i');
+
+                if (passwordInput.attr('type') === 'password') {
+                    passwordInput.attr('type', 'text');
+                    icon.removeClass('fa-eye').addClass('fa-eye-slash');
+                } else {
+                    passwordInput.attr('type', 'password');
+                    icon.removeClass('fa-eye-slash').addClass('fa-eye');
+                }
+            });
+
+            function showToast(selector, duration = 5000) {
+                const toast = $(selector);
+                toast.addClass('show');
+
+                if (duration !== -1) {
+                    setTimeout(() => {
+                        hideToast(selector);
+                    }, duration);
+                }
+
+                toast.find('.close-btn').on('click', function () {
+                    hideToast(selector);
+                });
+            }
+
+            function hideToast(selector) {
+                $(selector).removeClass('show');
+            }
+
+            $('#loginForm').on('submit', function (e) {
+                e.preventDefault();
+
+                const username = $('#username').val().trim();
+                const password = $('#password').val();
+                const remember = $('#remember').is(':checked');
+
+                if (!username || !password) {
+                    $('#errorMessage').text('请输入用户名和密码');
+                    showToast('#errorToast');
+                    return;
+                }
+
+                $('#loginText').addClass('hidden');
+                $('#loginSpinner').removeClass('hidden');
+                $('#loginBtn').prop('disabled', true).addClass('opacity-75');
+
+                // TODO: 替换为实际的登录API调用
+                setTimeout(function () {
+                    $('#loginText').removeClass('hidden');
+                    $('#loginSpinner').addClass('hidden');
+                    $('#loginBtn').prop('disabled', false).removeClass('opacity-75');
+
+                    if (username === 'admin' && password === 'password') {
+                        window.location.href = 'index.html';
+                    } else {
+                        $('#errorMessage').text('用户名或密码不正确');
+                        showToast('#errorToast');
+                    }
+                }, 1500);
+            });
+
+            $('#registerLink').on('click', function (e) {
+                e.preventDefault();
+                // TODO: 替换为实际的注册页面URL
+                alert('这里将跳转到注册页面');
+            });
+        });
+    </script>
+</body>
+
+</html>
