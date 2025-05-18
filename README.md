@@ -1,2 +1,2 @@
-# Strealome
+# strealome
 stream-alone
