@@ -1,54 +1,73 @@
-use std::path::Path;
 use std::sync::{ Arc, LazyLock };
 use std::time::Duration;
+
+use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tokio::{sync::Mutex, time };
 use duckdb::{Connection, Result as DuckDBResult, Error as DuckDBError, Row, params};
-use futures::StreamExt;
-use crate::DATABASE_PATH;
-use crate::model::UserModel;
-use crate::repository::crud::CRUD;
-use crate::repository::user::UserRepo;
 
-static SCHEMA_NAME: &str = "strealome";
-static DUCKDB_REPO: LazyLock<DuckDBRepo> = LazyLock::new(|| DuckDBRepo::init(DATABASE_PATH).unwrap());
+use crate::REPO_CFG;
+use crate::model::UserModel;
+
+use super::{RepoConfig, Repository, Error};
+use super::crud::CRUD;
+use super::user::UserRepo;
+
+pub static DUCKDB_REPO: LazyLock<DuckDBRepo> =
+    LazyLock::new(|| DuckDBRepo::init(&REPO_CFG).expect("Failed to init") );
 
 pub struct DuckDBRepo {
+    schema_name: String,
     conn: Arc<Mutex<Connection>>,
 }
 
-pub async fn duckdb() -> Box<dyn UserRepo> {
-    Box::new(DUCKDB_REPO.clone().await)
-}
-
-impl DuckDBRepo {
-    fn new(conn: Connection) -> Self {
-        Self { conn: Arc::new(Mutex::new(conn)) }
+#[async_trait]
+impl Repository for DuckDBRepo {
+    async fn conn() -> Self {
+        DUCKDB_REPO.clone().await
     }
-
-    pub async fn clone(&self) -> Self {
+    
+    async fn clone(&self) -> Self {
         let get_conn = time::timeout(Duration::from_millis(100), self.conn.lock());
         if let Ok(conn) = get_conn.await {
             if let Ok(new_conn) = conn.try_clone() {
-                return Self::new(new_conn);
+                return Self::new(new_conn, self.schema_name.clone());
             }
         }
-        Self { conn: self.conn.clone() }
+        Self {
+            schema_name: self.schema_name.clone(),
+            conn: self.conn.clone()
+        }
+    }
+}
+
+
+impl DuckDBRepo {
+    fn new(conn: Connection, schema_name: String) -> Self {
+        Self {
+            schema_name,
+            conn: Arc::new(Mutex::new(conn))
+        }
     }
 
-    pub fn init(path: &str) -> DuckDBResult<Self> {
-        let conn = Connection::open(path)?;
-        let ret = Self::new(conn);
+    fn init(cfg: &RepoConfig) -> Result<Self, Error> {
+        if let RepoConfig { url: Some(url), schema: Some(schema), .. } = cfg {
+            let conn = Connection::open(url)?;
+            let ret = Self::new(conn, schema.to_string());
 
-        ret.init_schema()?;
-        ret.init_user_table()?;
-        
-        Ok(ret)
+            ret.init_schema()?;
+            ret.init_user_table()?;
+
+            Ok(ret)
+        } else {
+            Err(Error::InvalidConfig(format!("{cfg:?}")))
+        }
+
     }
     
     fn init_schema(&self) -> DuckDBResult<()> {
         self.conn.try_lock().unwrap().execute(
-            &format!("CREATE SCHEMA IF NOT EXISTS {SCHEMA_NAME}"),[]
+            &format!("CREATE SCHEMA IF NOT EXISTS {}", self.schema_name),[]
         ).map(|_| ())
     }
     
@@ -56,16 +75,16 @@ impl DuckDBRepo {
         let conn = self.conn.try_lock().unwrap();
         
         conn.execute(&format!(
-            "CREATE SEQUENCE IF NOT EXISTS {SCHEMA_NAME}.users_id_seq START 1;"),[]
+            "CREATE SEQUENCE IF NOT EXISTS {}.users_id_seq START 1;", self.schema_name),[]
         )?;
         
         conn.execute(&format!(
-            "CREATE TABLE IF NOT EXISTS {SCHEMA_NAME}.users (
-                id          INTEGER         PRIMARY KEY DEFAULT     nextval('{SCHEMA_NAME}.users_id_seq'),
+            "CREATE TABLE IF NOT EXISTS {}.users (
+                id          INTEGER         PRIMARY KEY DEFAULT     nextval('{}.users_id_seq'),
                 name        TEXT            NOT NULL,
                 password    TEXT            NOT NULL,
                 created_at  TIMESTAMPTZ     NOT NULL    DEFAULT     NOW()
-            )"),[]
+            )", self.schema_name, self.schema_name),[]
         ).map(|_| ())
     }
 }
@@ -89,13 +108,13 @@ impl CRUD for DuckDBRepo {
 
     async fn find_by_id(&self, id: i32) -> Option<UserModel> {
         let conn = self.conn.lock().await;
-        let mut stmt = conn.prepare(&format!("SELECT * FROM {SCHEMA_NAME}.users WHERE id = ?")).unwrap();
+        let mut stmt = conn.prepare(&format!("SELECT * FROM {}.users WHERE id = ?", self.schema_name)).unwrap();
         stmt.query_row(&[&id], |row| { row.try_into() }).ok()
     }
 
     async fn find_all(&self) -> Vec<UserModel> {
         let conn = self.conn.lock().await;
-        let mut stmt = conn.prepare(&format!("SELECT * FROM {SCHEMA_NAME}.users")).unwrap();
+        let mut stmt = conn.prepare(&format!("SELECT * FROM {}.users", self.schema_name)).unwrap();
         if let Ok(iter) = stmt.query_map([], |row| { row.try_into() }) {
             iter.filter_map(|row| row.ok()).collect()
         } else {
@@ -106,7 +125,7 @@ impl CRUD for DuckDBRepo {
     async fn create(&self, user: UserModel) -> UserModel {
         let conn = self.conn.lock().await;
         let _res = conn.execute(
-            &format!("INSERT INTO {SCHEMA_NAME}.users (name, password) VALUES (?, ?)"),
+            &format!("INSERT INTO {}.users (name, password) VALUES (?, ?)", self.schema_name),
             params![&user.name, &user.password]
         ).unwrap();
         
@@ -122,4 +141,24 @@ impl CRUD for DuckDBRepo {
     }
 }
 
-impl UserRepo for DuckDBRepo {}
+#[async_trait::async_trait]
+impl UserRepo for DuckDBRepo {
+    async fn find_by_name(&self, name: &str) -> Result<Option<UserModel>, Error> {
+        let conn = self.conn.lock().await;
+        let res = conn.query_row(
+            &format!("SELECT * FROM {}.users WHERE name = ?", self.schema_name),
+            &[name], |row| { UserModel::try_from(row) }
+        );
+        match res {
+            Ok(user) => Ok(Some(user)),
+            Err(e) => {
+                match e {
+                    DuckDBError::InvalidColumnType(_,_,_)   |
+                    DuckDBError::InvalidColumnIndex(_)      |
+                    DuckDBError::InvalidColumnName(_) => { Ok(None) },
+                    _ => { Err(e.into()) }
+                }
+            }
+        }
+    }
+}

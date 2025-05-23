@@ -1,14 +1,17 @@
-use std::error::Error;
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
-use thiserror::Error;
+use axum::response::{IntoResponse, Response as AxumResponse};
+use serde_json::Value;
+use thiserror::Error as ThisError;
 
-#[derive(Error, Debug)]
-pub enum ErrorResponse {
-    #[error("DuckDB error: {0}")]
-    DuckDB(#[from] duckdb::Error),
+use crate::service;
+use super::Response;
+
+#[derive(ThisError, Debug)]
+pub enum Error {
+    #[error("{0:?}")]
+    Genetic(Option<Value>),
     
-    #[error("IO error: {0}")]
+    #[error("I/O error: {0}")]
     IO(#[from] std::io::Error),
     
     #[error("JSON error: {0}")]
@@ -16,26 +19,31 @@ pub enum ErrorResponse {
     
     #[error("Invalid argument: {0}")]
     InvalidArgument(String),
-    
 }
 
-impl ErrorResponse {
+impl Error {
     pub fn status_code(&self) -> StatusCode {
         match self {
-            ErrorResponse::DuckDB(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ErrorResponse::IO(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ErrorResponse::JSON(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            ErrorResponse::InvalidArgument(_) => StatusCode::BAD_REQUEST,
+            Error::IO(_)                => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::JSON(_)              => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::InvalidArgument(_)   => StatusCode::BAD_REQUEST,
+            Error::Genetic(_)           => StatusCode::OK,
         }
-    }
-    
-    pub fn message(&self) -> String {
-        self.to_string()
     }
 }
 
-impl IntoResponse for ErrorResponse {
-    fn into_response(self) -> Response {
-        (self.status_code(), self.message()).into_response()
+impl From<Error> for Response {
+    fn from(e: Error) -> Self {
+        match e {
+            Error::Genetic(payload) => Response::fail(StatusCode::OK, payload),
+            _ => Response::fail(e.status_code(), None),
+        }
+    }
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> AxumResponse {
+        let response = Response::from(self);
+        response.into_response()
     }
 }
