@@ -35,8 +35,16 @@ fn verify_username(username: &str) -> bool {
 }
 
 fn verify_password(password: &str) -> bool {
-    let regex = regex::Regex::new(r"^(?=.*[a-z])(?=.*\d).{8,32}$").unwrap();
-    regex.is_match(password)
+    if password.len() < 8 || password.len() > 32 { return false }
+    let mut has_digit = false;
+    let mut has_letter = false;
+    for c in password.chars() {
+        if !c.is_ascii_alphanumeric() { return false }
+        if !has_digit && c.is_ascii_digit() { has_digit = true }
+        else if !has_letter && c.is_ascii_alphabetic() { has_letter = true }
+    }
+    
+    has_digit && has_letter
 }
 
 pub async fn handle_register(param: &RegisterParam) -> Result<UserModel, UserError> {
