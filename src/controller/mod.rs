@@ -1,9 +1,7 @@
 mod error;
-mod register;
 mod response;
-mod index;
 mod jwt;
-mod login;
+mod http;
 
 use std::sync::Arc;
 use axum::Router;
@@ -37,9 +35,7 @@ pub async fn listen<A: ToSocketAddrs>(
     addr: A, repository: Arc<dyn Repository>, jwt_secret: String, jwt_exp_duration: Duration
 ) -> JoinHandle<Result<(), String>> {
     let app = Router::new()
-        .merge(index::route("/"))
-        .merge(login::route("/login"))
-        .merge(register::route("/register"))
+        .merge(http::route("/"))
         .with_state(AppState { repository, jwt_secret, jwt_exp_duration });
 
     let listener = TcpListener::bind(addr).await.unwrap();

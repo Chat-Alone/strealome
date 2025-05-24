@@ -6,7 +6,7 @@ use axum::extract::State;
 use axum::http::{HeaderValue, header::SET_COOKIE};
 use axum::response::{Html, IntoResponse, Response as AxumResponse};
 
-use super::{AppState, Error, Jwt, Response};
+use super::{Jwt, AppState, Error, Response};
 use crate::{unwrap, USE_COOKIE};
 use crate::service::user;
 
@@ -36,7 +36,6 @@ async fn get(jwt: Option<Jwt>, State(state): State<AppState>) -> AxumResponse {
         let user = state.repository.find_by_id(jwt.sub).await;
         if let Some(user) = user {
             let str = unwrap!(read_to_string("frontend/index.html").await);
-            let str = str.replace("{{username}}", &user.name);
             return Html(str).into_response();
         }
     }

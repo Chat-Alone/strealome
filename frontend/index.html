@@ -830,8 +830,16 @@
             }
 
             $('#logoutBtn').on('click', function () {
-                // TODO: 对接登出API
-                alert('Logout functionality would be implemented here.');
+                fetch('/logout', { method: 'POST' })
+                    .then(_ => {
+                        window.localStorage.removeItem('authToken');
+                        window.location.href = '/';
+                    })
+                    .catch(error => {
+                        // TODO
+                        alert(error);
+                    })
+
             });
 
             const settingsModal = $('#settingsModal');

@@ -5,7 +5,6 @@ mod service;
 mod signal;
 
 use std::sync::{Arc};
-use axum::serve;
 use chrono::Duration;
 use tokio::task::JoinHandle;
 use repository::{DuckDBRepo, RepoConfig };

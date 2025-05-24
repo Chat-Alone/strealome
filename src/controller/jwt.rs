@@ -94,11 +94,8 @@ impl OptionalFromRequestParts<AppState> for Jwt {
         async move {
             if USE_COOKIE {
                 if let Ok(TypedHeader(cookie)) = req.extract::<TypedHeader<Cookie>>().await {
-                    println!("Cookie: {:?}", cookie);
                     if let Some(token) = cookie.get("token") {
-                        println!("Token: {:?}", token);
                         if let Ok(jwt) = Jwt::decode(token, &state.jwt_secret) {
-                            println!("JWT: {:?}", jwt);
                             return Ok(jwt.verify().then_some(jwt))
                         }
                     }
