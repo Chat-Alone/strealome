@@ -11,7 +11,7 @@ pub use user::UserRepo;
 pub use duckdb_impl::{ DuckDBRepo, DUCKDB_REPO };
 
 #[async_trait::async_trait]
-pub trait Repository: UserRepo {
+pub trait Repository: UserRepo + Send + Sync {
     async fn conn() -> Self where Self: Sized;
     async fn clone(&self) -> Self where Self: Sized;
     

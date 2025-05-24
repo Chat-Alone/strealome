@@ -1,5 +1,3 @@
-use axum::response::IntoResponse;
-use chrono::Utc;
 use thiserror::Error as ThisError;
 
 use crate::REPO;
@@ -51,11 +49,11 @@ pub async fn handle_register(param: &RegisterParam) -> Result<UserModel, UserErr
     };
     
     let conn = REPO.clone().await;
-    let user = conn.find_by_name(username).await.unwrap();
+    let user = conn.find_by_name(username).await.map_err(|e| super::Error::from(e))?;
     if user.is_some() {
         return Err(UserError::UserAlreadyExists);
     };
     
     let user = conn.create(UserModel::new_user(username.to_string(), password.to_string())).await;
-    todo!()
+    Ok(user)
 }

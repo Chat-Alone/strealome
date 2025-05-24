@@ -3,7 +3,6 @@ use axum::response::{IntoResponse, Response as AxumResponse};
 use serde_json::Value;
 use thiserror::Error as ThisError;
 
-use crate::service;
 use super::Response;
 
 #[derive(ThisError, Debug)]
@@ -17,6 +16,10 @@ pub enum Error {
     #[error("JSON error: {0}")]
     JSON(#[from] serde_json::Error),
     
+    #[error("Jwt Error: {0}")]
+    Jwt(#[from] jsonwebtoken::errors::Error),
+    
+    
     #[error("Invalid argument: {0}")]
     InvalidArgument(String),
 }
@@ -26,6 +29,7 @@ impl Error {
         match self {
             Error::IO(_)                => StatusCode::INTERNAL_SERVER_ERROR,
             Error::JSON(_)              => StatusCode::INTERNAL_SERVER_ERROR,
+            Error::Jwt(_)               => StatusCode::INTERNAL_SERVER_ERROR,
             Error::InvalidArgument(_)   => StatusCode::BAD_REQUEST,
             Error::Genetic(_)           => StatusCode::OK,
         }

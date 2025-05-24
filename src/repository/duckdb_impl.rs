@@ -16,6 +16,7 @@ use super::user::UserRepo;
 pub static DUCKDB_REPO: LazyLock<DuckDBRepo> =
     LazyLock::new(|| DuckDBRepo::init(&REPO_CFG).expect("Failed to init") );
 
+#[derive(Debug)]
 pub struct DuckDBRepo {
     schema_name: String,
     conn: Arc<Mutex<Connection>>,
