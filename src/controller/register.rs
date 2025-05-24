@@ -31,7 +31,7 @@ async fn get() -> AxumResponse {
 
 async fn post(Json(param): Json<PostRequest>) -> Response {
     let param = param.into();
-    let user = user::handle_register(&param).await;
+    let user = user::handle_register(param).await;
     if let Err(e) = user {
         return e.into();
     }

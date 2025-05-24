@@ -25,27 +25,27 @@ pub struct Response {
 }
 
 impl Response {
-    pub fn new(id: u32, status_code: StatusCode, payload: Option<Value>) -> Self {
+    pub fn new(id: u32, success: bool, status_code: StatusCode, payload: Option<Value>) -> Self {
         Self {
             status_code,
             
             id,
-            success: status_code.is_success(),
+            success,
             payload,
             created_at: Utc::now(),
         }
     }
     
     pub fn success(payload: Option<Value>) -> Self {
-        Self::new(get_id(), StatusCode::OK, payload)
+        Self::new(get_id(), true, StatusCode::OK, payload)
     }
     
     pub fn code(status_code: StatusCode) -> Self {
-        Self::new(get_id(), status_code, None)
+        Self::new(get_id(), status_code == StatusCode::OK, status_code, None)
     }
     
     pub fn fail(status_code: StatusCode, payload: Option<Value>) -> Self {
-        Self::new(get_id(), status_code, payload)
+        Self::new(get_id(), false, status_code, payload)
     }
     
     pub fn error(description: &str) -> Self {

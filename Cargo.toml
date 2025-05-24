@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 axum = { version = "0.8.4", features = ["ws"] }
+axum-extra = { version = "0.10.1", features = ["typed-header"] }
 jsonwebtoken = "9.3.1"
 duckdb = { version = "1.2.2", features = ["chrono", "bundled"]}
 
@@ -16,4 +17,5 @@ chrono = { version = "0.4.41", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
-regex = "1.11.1"
+bcrypt = "0.17.0"
+headers = "0.4.0"
