@@ -361,25 +361,40 @@
                 $('#registerSpinner').removeClass('hidden');
                 $('#registerBtn').prop('disabled', true).addClass('opacity-75');
 
-                // TODO: 替换为实际的注册API调用
-                setTimeout(function () {
-                    $('#registerText').removeClass('hidden');
-                    $('#registerSpinner').addClass('hidden');
-                    $('#registerBtn').prop('disabled', false).removeClass('opacity-75');
+                fetch('/register',{
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password }),
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error(`jb，飞了：${response.statusText}`);
+                        return response;
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            $('#successMessage').text('注册成功！即将跳转...');
+                            showToast('#successToast');
 
-                    // todo: 这是演示用的，实际部署时应删除
-                    if (username === 'test') {
-                        $('#errorMessage').text('用户名已被使用');
+                            setTimeout(function () {
+                                window.location.href = '/login';
+                            }, 2000);
+                        } else {
+                            $('#errorMessage').text(data?.payload?.error ??  '未知错误');
+                            showToast('#errorToast');
+                        }
+                    })
+                    .catch(error => {
+                        $('#errorMessage').text(error.message);
                         showToast('#errorToast');
-                    } else {
-                        $('#successMessage').text('注册成功！即将跳转...');
-                        showToast('#successToast');
-
-                        setTimeout(function () {
-                            window.location.href = 'login.html';
-                        }, 2000);
-                    }
-                }, 1500);
+                    })
+                    .finally(() => {
+                        $('#registerText').removeClass('hidden');
+                        $('#registerSpinner').addClass('hidden');
+                        $('#registerBtn').prop('disabled', false).removeClass('opacity-75');
+                    });
             });
         });
     </script>

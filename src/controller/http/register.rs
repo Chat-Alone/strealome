@@ -3,10 +3,9 @@ use tokio::fs::read_to_string;
 use axum::{Json, Router, routing};
 use axum::response::{Html, IntoResponse, Response as AxumResponse};
 use serde_json::json;
+
 use crate::unwrap;
-use crate::controller::AppState;
-use crate::controller::error::Error;
-use crate::controller::response::Response;
+use super::{AppState, Error, Response};
 use crate::service::user;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -31,7 +30,7 @@ async fn get() -> AxumResponse {
 
 async fn post(Json(param): Json<PostRequest>) -> Response {
     let param = param.into();
-    let user = user::handle_register(&param).await;
+    let user = user::handle_register(param).await;
     if let Err(e) = user {
         return e.into();
     }

@@ -377,19 +377,44 @@
                 $('#loginSpinner').removeClass('hidden');
                 $('#loginBtn').prop('disabled', true).addClass('opacity-75');
 
-                // TODO: 替换为实际的登录API调用
-                setTimeout(function () {
-                    $('#loginText').removeClass('hidden');
-                    $('#loginSpinner').addClass('hidden');
-                    $('#loginBtn').prop('disabled', false).removeClass('opacity-75');
+                fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        // remember TODO
+                    }),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const token = data.payload?.token;
+                            if (!token) { throw new Error("我token呢🤔"); }
+                            window.localStorage.setItem('authToken', token);
 
-                    if (username === 'admin' && password === 'password') {
-                        window.location.href = 'index.html';
-                    } else {
-                        $('#errorMessage').text('用户名或密码不正确');
+                            $('#successMessage').text('登录成功！即将跳转...');
+                            showToast('#successToast');
+
+                            setTimeout(function () {
+                                window.location.href = '/';
+                            }, 200);
+                        } else {
+                            $('#errorMessage').text(data?.payload?.error ??  '未知错误' );
+                            showToast('#errorToast');
+                        }
+                    })
+                    .catch(error => {
+                        $('#errorMessage').text(error.message);
                         showToast('#errorToast');
-                    }
-                }, 1500);
+                    })
+                    .finally(() => {
+                        $('#loginText').removeClass('hidden');
+                        $('#loginSpinner').addClass('hidden');
+                        $('#loginBtn').prop('disabled', false).removeClass('opacity-75');
+                    });
             });
 
             // $('#registerLink').on('click', function (e) {

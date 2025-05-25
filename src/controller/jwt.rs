@@ -1,11 +1,20 @@
 use axum::extract::{FromRequest, FromRequestParts, OptionalFromRequestParts};
 use axum::http::request::Parts;
 use axum::http::StatusCode;
+use axum::RequestPartsExt;
+use axum::response::{IntoResponse, Response};
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization, Cookie},
+    TypedHeader,
+};
+
+use chrono::Duration;
 use jsonwebtoken::errors::Result;
 use jsonwebtoken::{encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
 use super::AppState;
+use crate::USE_COOKIE;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Jwt {
@@ -15,12 +24,18 @@ pub struct Jwt {
 }
 
 impl Jwt {
-    pub fn new(sub: i32, exp: i64, iat: i64) -> Self {
-        Self { sub, exp, iat }
+    pub fn new(sub: i32, exp_duration_s: Duration) -> Self {
+        let iat = chrono::Local::now().timestamp();
+        let exp = iat + exp_duration_s.num_seconds();
+        Self {
+            sub,
+            exp,
+            iat
+        }
     }
     
     pub fn verify(&self) -> bool {
-        chrono::Local::now().timestamp() > self.exp
+        chrono::Local::now().timestamp() < self.exp
     }
     
     pub fn encode(&self, secret: &str) -> Result<String> {
@@ -38,26 +53,35 @@ impl Jwt {
 }
 
 impl FromRequestParts<AppState> for Jwt {
-    type Rejection = (StatusCode, String);
+    type Rejection = Response;
 
     fn from_request_parts(req: &mut Parts, state: &AppState) -> impl Future<Output=std::result::Result<Self, Self::Rejection>> + Send {
         async move {
-            let header = req.headers.get("Authorization");
-            if header.is_none() {
-                return Err((StatusCode::UNAUTHORIZED, "Missing Authorization header".to_string()));
-            }
-            let header = header.unwrap();
-            
-            if let Ok(header) = header.to_str() {
-                if let Some(bearer) = header.strip_prefix("Bearer ") {
-                    if let Ok(jwt) = Jwt::decode(bearer, &state.jwt_secret) {
-                        if jwt.verify() {
-                            return Ok(jwt)
+            if USE_COOKIE {
+                if let Ok(TypedHeader(cookie)) = req.extract::<TypedHeader<Cookie>>().await {
+                    if let Some(token) = cookie.get("token") {
+                        if let Ok(jwt) = Jwt::decode(token, &state.jwt_secret) {
+                            return jwt.verify()
+                                .then_some(jwt)
+                                .ok_or((StatusCode::UNAUTHORIZED,
+                                        "Invalid token".to_string()).into_response())
                         }
                     }
                 }
+                Err((StatusCode::UNAUTHORIZED).into_response())
             }
-            Err((StatusCode::UNAUTHORIZED, "Invalid Authorization header".to_string()))
+
+            else {
+                if let Ok(TypedHeader(bearer)) = req.extract::<TypedHeader<Authorization<Bearer>>>().await {
+                    if let Ok(jwt) = Jwt::decode(bearer.token(), &state.jwt_secret) {
+                        return jwt.verify()
+                            .then_some(jwt)
+                            .ok_or((StatusCode::UNAUTHORIZED,
+                                    "Invalid token".to_string()).into_response())
+                    }
+                }
+                Err((StatusCode::UNAUTHORIZED).into_response())
+            }
         }
     }
 }
@@ -65,14 +89,23 @@ impl FromRequestParts<AppState> for Jwt {
 impl OptionalFromRequestParts<AppState> for Jwt {
     type Rejection = (StatusCode, String);
 
+    // NEVER REJECT
     fn from_request_parts(req: &mut Parts, state: &AppState) -> impl Future<Output=std::result::Result<Option<Self>, Self::Rejection>> + Send {
         async move {
-            if let Some(header) = req.headers.get("Authorization") {
-                if let Ok(header) = header.to_str() {
-                    if let Some(bearer) = header.strip_prefix("Bearer ") {
-                        if let Ok(jwt) = Jwt::decode(bearer, &state.jwt_secret) {
+            if USE_COOKIE {
+                if let Ok(TypedHeader(cookie)) = req.extract::<TypedHeader<Cookie>>().await {
+                    if let Some(token) = cookie.get("token") {
+                        if let Ok(jwt) = Jwt::decode(token, &state.jwt_secret) {
                             return Ok(jwt.verify().then_some(jwt))
                         }
+                    }
+                }
+            }
+
+            else {
+                if let Ok(TypedHeader(bearer)) = req.extract::<TypedHeader<Authorization<Bearer>>>().await {
+                    if let Ok(jwt) = Jwt::decode(bearer.token(), &state.jwt_secret) {
+                        return Ok(jwt.verify().then_some(jwt))
                     }
                 }
             }

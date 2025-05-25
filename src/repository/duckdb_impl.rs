@@ -144,6 +144,15 @@ impl CRUD for DuckDBRepo {
 
 #[async_trait::async_trait]
 impl UserRepo for DuckDBRepo {
+    /// Find user by name
+    ///
+    /// # Parameters
+    /// * `name` - The name of the user to find
+    ///
+    /// # Returns
+    /// * `Ok(Some(UserModel))` - User found, returns the user model
+    /// * `Ok(None)` - User not found
+    /// * `Err(Error)` - Error occurred during the query
     async fn find_by_name(&self, name: &str) -> Result<Option<UserModel>, Error> {
         let conn = self.conn.lock().await;
         let res = conn.query_row(
@@ -154,6 +163,7 @@ impl UserRepo for DuckDBRepo {
             Ok(user) => Ok(Some(user)),
             Err(e) => {
                 match e {
+                    DuckDBError::QueryReturnedNoRows        |
                     DuckDBError::InvalidColumnType(_,_,_)   |
                     DuckDBError::InvalidColumnIndex(_)      |
                     DuckDBError::InvalidColumnName(_) => { Ok(None) },
