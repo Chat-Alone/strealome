@@ -37,6 +37,9 @@
             --icon-color: #374151;
             --message-bg: #f3f4f6;
             --hover-bg: #f3f4f6;
+            --focus-ring: #3b82f6;
+            --focus-ring-offset: #ffffff;
+            --focus-shadow: rgba(59, 130, 246, 0.5);
         }
 
         .dark {
@@ -49,6 +52,9 @@
             --icon-color: #d1d5db;
             --message-bg: #1e1e1e;
             --hover-bg: #262626;
+            --focus-ring: #60a5fa;
+            --focus-ring-offset: #111111;
+            --focus-shadow: rgba(96, 165, 250, 0.5);
         }
 
         body {
@@ -349,14 +355,323 @@
                 transform: scale(0.95);
             }
         }
+
+        *:focus {
+            outline: none;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        input[type="range"]:focus,
+        textarea:focus {
+            border-color: var(--focus-ring);
+            box-shadow: 0 0 0 3px var(--focus-shadow);
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        button:focus,
+        .button:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            transition: outline 0.15s ease-in-out;
+        }
+
+        button.rounded-full:focus,
+        .button.rounded-full:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 3px;
+            box-shadow: 0 0 0 1px var(--focus-ring-offset), 0 0 0 4px var(--focus-shadow);
+        }
+
+        .bg-\[var\(--accent-color\)\]:focus,
+        button[type="submit"]:focus {
+            outline: 2px solid var(--focus-ring-offset);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 4px var(--focus-shadow);
+        }
+
+        #logoutBtn.focused::before {
+            display: none;
+        }
+
+        #logoutBtn:focus {
+            outline: none;
+            box-shadow: 0 0 0 -100px var(--focus-ring);
+            color: var(--text-primary);
+            border-color: var(--focus-ring);
+        }
+
+        #settingsBtn:focus,
+        #themeToggle:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 3px;
+            background-color: var(--hover-bg);
+            box-shadow: 0 0 0 1px var(--focus-ring-offset), 0 0 0 4px var(--focus-shadow);
+            transform: scale(1.05);
+            transition: all 0.15s ease-in-out;
+        }
+
+        #chatTab:focus,
+        #viewersTab:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: -2px;
+            background-color: var(--hover-bg);
+            transition: all 0.15s ease-in-out;
+        }
+
+        .live-controls button:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.8);
+            outline-offset: 2px;
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+            transition: all 0.15s ease-in-out;
+        }
+
+        .volume-slider:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.8);
+            outline-offset: 3px;
+        }
+
+        .volume-slider:focus::-webkit-slider-thumb {
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+            transform: scale(1.2);
+        }
+
+        .volume-slider:focus::-moz-range-thumb {
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+            transform: scale(1.2);
+        }
+
+        #settingsModal button:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 3px var(--focus-shadow);
+        }
+
+        #closeSettingsBtn:focus,
+        .close-btn:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            background-color: var(--hover-bg);
+            color: var(--text-primary);
+            transform: scale(1.1);
+            transition: all 0.15s ease-in-out;
+        }
+
+        #closeSettingsBtn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease-in-out;
+        }
+
+        #closeSettingsBtn:hover {
+            background-color: var(--hover-bg);
+            transform: scale(1.05);
+        }
+
+        #closeSettingsBtn:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            background-color: var(--hover-bg);
+            transform: scale(1.1);
+            box-shadow: 0 0 0 3px var(--focus-shadow);
+        }
+
+        .toast-notification .close-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .toast-notification .close-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .toast-notification .close-btn:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.9);
+            outline-offset: 2px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+        }
+
+        #streamVideo:focus {
+            outline: 3px solid var(--focus-ring);
+            outline-offset: 4px;
+            box-shadow: 0 0 0 6px var(--focus-shadow);
+        }
+
+        .keyboard-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 250px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .keyboard-hint.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .keyboard-hint h4 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .keyboard-hint ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .keyboard-hint li {
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: var(--accent-color);
+            color: white;
+            padding: 8px;
+            text-decoration: none;
+            border-radius: 4px;
+            z-index: 100;
+            font-size: 14px;
+            transition: top 0.3s;
+        }
+
+        .skip-link:focus {
+            top: 6px;
+            outline: 2px solid var(--focus-ring-offset);
+            outline-offset: 2px;
+        }
+
+        #sendMessageBtn:focus {
+            outline: 2px solid var(--focus-ring-offset);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 4px var(--focus-shadow);
+            transform: scale(1.05);
+            transition: all 0.15s ease-in-out;
+        }
+
+        a:focus,
+        [role="button"]:focus,
+        [tabindex]:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            transition: outline 0.15s ease-in-out;
+        }
+
+        .no-focus:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
+        .keyboard-navigation button:focus,
+        .keyboard-navigation input:focus,
+        .keyboard-navigation select:focus {
+            z-index: 10;
+            position: relative;
+        }
+
+        .focused {
+            position: relative;
+        }
+
+        .focused::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 2px solid var(--focus-ring);
+            border-radius: inherit;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.6;
+        }
+
+        #logoutBtn.focused::before {
+            border-radius: 4px;
+        }
+
+        button.rounded-full.focused::before {
+            border-radius: 50%;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+        }
+
+        @media (prefers-contrast: high) {
+            :root {
+                --focus-ring: #0066cc;
+                --focus-shadow: rgba(0, 102, 204, 0.7);
+            }
+
+            .dark {
+                --focus-ring: #66b3ff;
+                --focus-shadow: rgba(102, 179, 255, 0.7);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *:focus {
+                transition: none;
+            }
+
+            button:focus,
+            input:focus {
+                transition: none;
+            }
+        }
     </style>
 </head>
 
 <body class="flex flex-col h-screen">
+    <!-- 跳过导航链接 -->
+    <a href="#main-content" class="skip-link">跳过导航</a>
+
     <div id="muteToast" class="toast-notification">
         <i class="fas fa-volume-mute icon"></i>
         <span>直播已静音，点击左下角音量图标取消静音</span>
-        <button class="close-btn">&times;</button>
+        <button class="close-btn" tabindex="0">&times;</button>
     </div>
 
     <div id="settingsModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
@@ -364,7 +679,7 @@
         <div class="bg-[var(--primary-bg)] rounded-lg shadow-lg p-6 w-full max-w-md z-10 relative">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-semibold">用户设置</h3>
-                <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xl"
+                <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xl" tabindex="0"
                     id="closeSettingsBtn">
                     &times;
                 </button>
@@ -374,7 +689,7 @@
                 <div class="space-y-2">
                     <h4 class="font-medium">修改用户名</h4>
                     <div class="space-y-2">
-                        <input type="text" id="newUsername" placeholder="新用户名"
+                        <input type="text" id="newUsername" placeholder="新用户名" tabindex="0"
                             class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
                         <p id="usernameError" class="text-red-500 text-xs hidden">用户名必须是3-16个字符</p>
                     </div>
@@ -383,9 +698,9 @@
                 <div class="space-y-2">
                     <h4 class="font-medium">修改密码</h4>
                     <div class="space-y-2">
-                        <input type="password" id="newPassword" placeholder="新密码"
+                        <input type="password" id="newPassword" placeholder="新密码" tabindex="0"
                             class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
-                        <input type="password" id="confirmPassword" placeholder="确认新密码"
+                        <input type="password" id="confirmPassword" placeholder="确认新密码" tabindex="0"
                             class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
                         <p id="passwordError" class="text-red-500 text-xs hidden">密码必须包含至少8个字符、一个大写字母和一个数字</p>
                         <p id="confirmError" class="text-red-500 text-xs hidden">两次输入的密码不一致</p>
@@ -394,17 +709,17 @@
 
                 <div class="pt-2 border-t border-solid border-[var(--border-color)]">
                     <p class="text-sm text-[var(--text-secondary)] mb-2">请输入当前密码以确认更改</p>
-                    <input type="password" id="currentPassword" placeholder="当前密码" required
+                    <input type="password" id="currentPassword" placeholder="当前密码" required tabindex="0"
                         class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
                     <p id="currentPasswordError" class="text-red-500 text-xs hidden">请输入当前密码</p>
                 </div>
 
                 <div class="flex justify-end pt-4">
-                    <button type="button" id="cancelSettingsBtn"
+                    <button type="button" id="cancelSettingsBtn" tabindex="0"
                         class="mr-2 px-4 py-2 border border-solid border-[var(--border-color)] rounded text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]">
                         取消
                     </button>
-                    <button type="submit" id="saveSettingsBtn"
+                    <button type="submit" id="saveSettingsBtn" tabindex="0"
                         class="px-4 py-2 bg-[var(--accent-color)] text-white rounded hover:bg-blue-600">
                         保存更改
                     </button>
@@ -416,7 +731,20 @@
     <div id="successToast" class="toast-notification">
         <i class="fas fa-check-circle icon text-green-500"></i>
         <span id="successMessage">操作成功!</span>
-        <button class="close-btn">&times;</button>
+        <button class="close-btn" tabindex="0">&times;</button>
+    </div>
+
+    <!-- 键盘快捷键提示 -->
+    <div id="keyboardHint" class="keyboard-hint">
+        <h4>键盘快捷键</h4>
+        <ul>
+            <li><span>切换静音</span> <span class="key">M</span></li>
+            <li><span>全屏/退出</span> <span class="key">F</span></li>
+            <li><span>画中画</span> <span class="key">P</span></li>
+            <li><span>音量+/-</span> <span class="key">↑/↓</span></li>
+            <li><span>播放/暂停</span> <span class="key">空格</span></li>
+            <li><span>关闭提示</span> <span class="key">ESC</span></li>
+        </ul>
     </div>
 
     <header
@@ -438,30 +766,31 @@
                     <i class="fas fa-user mr-0.5 sm:mr-1"></i>
                     <span id="username" class="truncate max-w-[60px] sm:max-w-none">UserName123</span>
                 </span>
-                <button id="logoutBtn"
+                <button id="logoutBtn" tabindex="0" aria-label="退出登录"
                     class="text-xs sm:text-sm whitespace-nowrap ml-1 px-2 py-1 rounded border border-[var(--border-color)] bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1">
-                    <i class="fas fa-sign-out-alt text-[var(--icon-color)]"></i><span class="hidden sm:inline">登出</span>
+                    <i class="fas fa-sign-out-alt text-[var(--icon-color)]" aria-hidden="true"></i><span
+                        class="hidden sm:inline">登出</span>
                 </button>
             </div>
-            <button id="settingsBtn"
+            <button id="settingsBtn" tabindex="0" aria-label="打开用户设置"
                 class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0 ml-1">
-                <i class="fas fa-cog text-[var(--icon-color)]"></i>
+                <i class="fas fa-cog text-[var(--icon-color)]" aria-hidden="true"></i>
             </button>
-            <button id="themeToggle"
+            <button id="themeToggle" tabindex="0" aria-label="切换主题"
                 class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0 ml-1">
-                <i id="themeIcon" class="fas fa-moon text-[var(--icon-color)]"></i>
+                <i id="themeIcon" class="fas fa-moon text-[var(--icon-color)]" aria-hidden="true"></i>
             </button>
         </div>
     </header>
 
-    <div class="flex flex-col md:flex-row flex-1 overflow-hidden">
+    <div class="flex flex-col md:flex-row flex-1 overflow-hidden" id="main-content">
         <div class="h-[33vh] md:flex-1 md:h-auto stream-container relative">
             <div id="loadingContainer" class="loading-container">
                 <div class="loading-spinner"></div>
                 <p class="text-base">加载直播中...</p>
             </div>
 
-            <video id="streamVideo" class="stream-video" autoplay muted>
+            <video id="streamVideo" class="stream-video" autoplay muted tabindex="0">
                 <source src="" type="video/mp4">
                 你的浏览器不支持HTML5视频标签。
             </video>
@@ -474,12 +803,13 @@
             <div
                 class="live-controls absolute bottom-0 left-0 right-0 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <button id="muteBtn"
+                    <button id="muteBtn" tabindex="0" aria-label="切换静音状态"
                         class="tooltip-container w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
-                        <i class="fas fa-volume-up text-white"></i>
+                        <i class="fas fa-volume-up text-white" aria-hidden="true"></i>
                         <span class="tooltip">静音</span>
                     </button>
-                    <input type="range" class="volume-slider" min="0" max="100" value="50" id="volumeSlider">
+                    <input type="range" class="volume-slider" min="0" max="100" value="50" id="volumeSlider"
+                        tabindex="0" aria-label="音量控制">
 
                     <div
                         class="ml-4 px-2 py-1 bg-black/30 rounded text-white text-sm font-geist-mono flex items-center">
@@ -489,17 +819,17 @@
 
                 <div class="flex items-center gap-3">
                     <div class="tooltip-container">
-                        <button id="pipBtn"
+                        <button id="pipBtn" tabindex="0" aria-label="开启画中画模式"
                             class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
-                            <i class="fas fa-external-link-alt text-white"></i>
+                            <i class="fas fa-external-link-alt text-white" aria-hidden="true"></i>
                         </button>
                         <span class="tooltip">画中画</span>
                     </div>
 
                     <div class="tooltip-container">
-                        <button id="fullscreenBtn"
+                        <button id="fullscreenBtn" tabindex="0" aria-label="进入全屏模式"
                             class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
-                            <i class="fas fa-expand text-white"></i>
+                            <i class="fas fa-expand text-white" aria-hidden="true"></i>
                         </button>
                         <span class="tooltip">全屏</span>
                     </div>
@@ -516,11 +846,13 @@
         <div
             class="flex-1 h-[67vh] md:h-auto md:max-w-sm border-l border-solid border-[var(--border-color)] flex flex-col bg-[var(--primary-bg)]">
             <div class="flex border-b border-solid border-[var(--border-color)]">
-                <button id="chatTab" class="tab-active flex-1 py-3 text-center font-medium">
-                    <i class="fas fa-comment-alt mr-1"></i>聊天
+                <button id="chatTab" tabindex="0" aria-label="切换到聊天选项卡" aria-selected="true" role="tab"
+                    class="tab-active flex-1 py-3 text-center font-medium">
+                    <i class="fas fa-comment-alt mr-1" aria-hidden="true"></i>聊天
                 </button>
-                <button id="viewersTab" class="flex-1 py-3 text-center font-medium text-[var(--text-secondary)]">
-                    <i class="fas fa-users mr-1"></i>在线用户
+                <button id="viewersTab" tabindex="0" aria-label="切换到在线用户选项卡" aria-selected="false" role="tab"
+                    class="flex-1 py-3 text-center font-medium text-[var(--text-secondary)]">
+                    <i class="fas fa-users mr-1" aria-hidden="true"></i>在线用户
                 </button>
             </div>
 
@@ -541,12 +873,12 @@
             <div
                 class="p-3 border-t border-solid border-[var(--border-color)] bg-[var(--secondary-bg)] sticky bottom-0">
                 <div class="flex items-center gap-2">
-                    <input type="text" id="messageInput"
+                    <input type="text" id="messageInput" tabindex="0" aria-label="输入聊天消息"
                         class="flex-1 px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]"
                         placeholder="输入消息..." />
-                    <button id="sendMessageBtn"
+                    <button id="sendMessageBtn" tabindex="0" aria-label="发送消息"
                         class="w-10 h-10 flex items-center justify-center bg-[var(--accent-color)] text-white rounded hover:bg-blue-600 transition-colors">
-                        <i class="fas fa-paper-plane"></i>
+                        <i class="fas fa-paper-plane" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
@@ -566,25 +898,130 @@
          * 3. 实现真实的直播状态检测逻辑
          */
 
+        window.addEventListener('load', () => {
+            if (document.activeElement && document.activeElement !== document.body) {
+                document.activeElement.blur();
+            }
+        });
+
         window.addEventListener("wheel", (e) => {
             const isPinching = e.ctrlKey;
             if (isPinching) e.preventDefault();
         }, { passive: false });
 
         $(document).ready(function () {
+            function initKeyboardNavigation() {
+                $('body').addClass('keyboard-navigation');
+
+                $(document).on('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        if ($('#settingsModal').is(':visible')) {
+                            closeSettingsModal();
+                        } else if ($('#keyboardHint').hasClass('show')) {
+                            $('#keyboardHint').removeClass('show');
+                        }
+                    }
+
+                    if (e.key === '?' && !$(e.target).is('input')) {
+                        e.preventDefault();
+                        $('#keyboardHint').addClass('show');
+
+                        setTimeout(() => {
+                            $('#keyboardHint').removeClass('show');
+                        }, 3000);
+                    }
+                });
+
+                $(document).on('keydown', function (e) {
+                    if (e.key === 'Tab') {
+                        if ($('#settingsModal').is(':visible')) {
+                            const focusableElements = $('#settingsModal').find('input, button, [tabindex="0"]').filter(':visible');
+                            const firstElement = focusableElements.first();
+                            const lastElement = focusableElements.last();
+
+                            if (e.shiftKey) {
+                                if ($(document.activeElement).is(firstElement)) {
+                                    e.preventDefault();
+                                    lastElement.focus();
+                                }
+                            } else {
+                                if ($(document.activeElement).is(lastElement)) {
+                                    e.preventDefault();
+                                    firstElement.focus();
+                                }
+                            }
+                        }
+                    }
+                });
+
+                $(document).on('keydown', 'button[tabindex="0"]', function (e) {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        $(this).click();
+                    }
+                });
+
+                $('#streamVideo').on('keydown', function (e) {
+                    const video = this;
+                    switch (e.key) {
+                        case ' ':
+                            e.preventDefault();
+                            if (video.paused) {
+                                video.play();
+                            } else {
+                                video.pause();
+                            }
+                            break;
+                        case 'f':
+                        case 'F':
+                            e.preventDefault();
+                            $('#fullscreenBtn').click();
+                            break;
+                        case 'm':
+                        case 'M':
+                            e.preventDefault();
+                            $('#muteBtn').click();
+                            break;
+                        case 'p':
+                        case 'P':
+                            e.preventDefault();
+                            $('#pipBtn').click();
+                            break;
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            const currentVolume = $('#volumeSlider').val();
+                            const newVolumeUp = Math.min(100, parseInt(currentVolume) + 10);
+                            $('#volumeSlider').val(newVolumeUp).trigger('input');
+                            break;
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            const currentVolumeDown = $('#volumeSlider').val();
+                            const newVolumeDown = Math.max(0, parseInt(currentVolumeDown) - 10);
+                            $('#volumeSlider').val(newVolumeDown).trigger('input');
+                            break;
+                    }
+                });
+
+                $('button, input, [tabindex="0"]').on('focus', function () {
+                    $(this).addClass('focused');
+                }).on('blur', function () {
+                    $(this).removeClass('focused');
+                });
+            }
+
+            initKeyboardNavigation();
+
             function showToast(selector, duration = 5000) {
                 const toast = $(selector);
                 toast.addClass('show');
 
+                const closeBtn = toast.find('.close-btn');
+
                 if (duration !== -1) {
-                    setTimeout(() => {
-                        hideToast(selector);
-                    }, duration);
+                    setTimeout(() => hideToast(selector), duration);
                 }
 
-                toast.find('.close-btn').on('click', function () {
-                    hideToast(selector);
-                });
+                closeBtn.on('click', () => hideToast(selector));
             }
 
             function hideToast(selector) {
@@ -613,15 +1050,15 @@
             });
 
             $('#chatTab').on('click', function () {
-                $('#chatTab').addClass('tab-active').removeClass('text-[var(--text-secondary)]');
-                $('#viewersTab').removeClass('tab-active').addClass('text-[var(--text-secondary)]');
+                $('#chatTab').addClass('tab-active').removeClass('text-[var(--text-secondary)]').attr('aria-selected', 'true');
+                $('#viewersTab').removeClass('tab-active').addClass('text-[var(--text-secondary)]').attr('aria-selected', 'false');
                 $('#chatContainer').show();
                 $('#viewersContainer').hide();
             });
 
             $('#viewersTab').on('click', function () {
-                $('#viewersTab').addClass('tab-active').removeClass('text-[var(--text-secondary)]');
-                $('#chatTab').removeClass('tab-active').addClass('text-[var(--text-secondary)]');
+                $('#viewersTab').addClass('tab-active').removeClass('text-[var(--text-secondary)]').attr('aria-selected', 'true');
+                $('#chatTab').removeClass('tab-active').addClass('text-[var(--text-secondary)]').attr('aria-selected', 'false');
                 $('#viewersContainer').show();
                 $('#chatContainer').hide();
             });
