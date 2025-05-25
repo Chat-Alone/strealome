@@ -39,6 +39,7 @@ pub async fn listen<A: ToSocketAddrs>(
         .with_state(AppState { repository, jwt_secret, jwt_exp_duration });
 
     let listener = TcpListener::bind(addr).await.unwrap();
+    println!("Listening on http://{}", listener.local_addr().unwrap());
     tokio::spawn(async move {
         axum::serve(listener, app).await.map_err(|e| e.to_string())
     })

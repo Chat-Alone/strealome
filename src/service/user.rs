@@ -15,6 +15,9 @@ pub enum UserError {
 
     #[error("User already exists.")]
     UserAlreadyExists,
+    
+    #[error("User not found.")]
+    UserNotFound,
 
     #[error("Incorrect username or password.")]
     IncorrectCredentials,
@@ -103,4 +106,18 @@ pub async fn handle_login(param: LoginParam) -> Result<UserModel, UserError> {
     }
     
     Err(UserError::IncorrectCredentials)
+}
+
+pub async fn change_password(user_id: i32, new_password: &str) -> Result<i32, UserError> {
+    if !validate_password(new_password) {
+        return Err(UserError::InvalidPassword);
+    };
+    
+    let conn = REPO.clone().await;
+    let mut user = conn.find_by_id(user_id).await.ok_or(UserError::UserNotFound)?;
+    user.password = bcrypt_password(new_password, bcrypt::DEFAULT_COST);
+    
+    conn.update(user).await.map_err(|e| super::Error::from(e))?;
+    
+    Ok(user_id)
 }

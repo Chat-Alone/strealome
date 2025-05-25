@@ -82,7 +82,7 @@ impl DuckDBRepo {
         conn.execute(&format!(
             "CREATE TABLE IF NOT EXISTS {}.users (
                 id          INTEGER         PRIMARY KEY DEFAULT     nextval('{}.users_id_seq'),
-                name        TEXT            NOT NULL,
+                name        TEXT            NOT NULL    UNIQUE,
                 password    TEXT            NOT NULL,
                 created_at  TIMESTAMPTZ     NOT NULL    DEFAULT     NOW()
             )", self.schema_name, self.schema_name),[]
@@ -106,6 +106,7 @@ impl<'a> TryFrom<&Row<'a>> for UserModel {
 #[async_trait::async_trait]
 impl CRUD for DuckDBRepo {
     type Target = UserModel;
+    type Error = Error;
 
     async fn find_by_id(&self, id: i32) -> Option<UserModel> {
         let conn = self.conn.lock().await;
@@ -133,8 +134,14 @@ impl CRUD for DuckDBRepo {
         user
     }
 
-    async fn update(&self, user: UserModel) -> UserModel {
-        todo!()
+    async fn update(&self, user: UserModel) -> Result<UserModel, Error> {
+        let conn = self.conn.lock().await;
+        let user = conn.query_row(
+            &format!("UPDATE {}.users SET name = ?, password = ? WHERE id = ? RETURNING *", self.schema_name),
+            params![&user.name, &user.password, &user.id], |row| { UserModel::try_from(row) }
+        )?;
+
+        Ok(user)
     }
 
     async fn delete(&self, id: i32) -> bool {

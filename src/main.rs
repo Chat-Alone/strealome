@@ -25,7 +25,6 @@ static REPO_CFG: RepoConfig = RepoConfig {
 async fn ctrl_c_task() -> JoinHandle<()> {
     tokio::spawn(async move {
         tokio::signal::ctrl_c().await.unwrap();
-        println!("Ctrl-C received, shutting down.");
     })
 }
 

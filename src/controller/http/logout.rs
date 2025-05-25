@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response as AxumResponse};
 
 use crate::{USE_COOKIE};
 use super::{AppState, Response};
-async fn post() -> AxumResponse {
+pub async fn post() -> AxumResponse {
     if USE_COOKIE {
         let mut res = Response::success(None).into_response();
         res.headers_mut()
