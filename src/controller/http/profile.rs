@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 use axum::{Json, Router, routing};
 use axum::response::{Html, IntoResponse, Response as AxumResponse};
 use serde_json::json;
-
+use crate::model::UserModel;
 use crate::unwrap;
 use super::{Jwt, AppState, Response};
 use crate::service::user;
 
 #[derive(Serialize, Deserialize, Debug)]
-struct PostRequest {
+struct PutRequest {
     #[serde(rename = "currentPassword")]
     current_password: Option<String>,
     #[serde(rename = "newPassword")]
@@ -17,8 +17,8 @@ struct PostRequest {
     new_username: Option<String>,
 }
 
-impl From<PostRequest> for user::UpdateProfileParam {
-    fn from(req: PostRequest) -> Self {
+impl From<PutRequest> for user::UpdateProfileParam {
+    fn from(req: PutRequest) -> Self {
         Self {
             old_password: req.current_password,
             new_password: req.new_password,
@@ -27,15 +27,33 @@ impl From<PostRequest> for user::UpdateProfileParam {
     }
 }
 
-async fn put(jwt: Jwt, Json(req): Json<PostRequest>) -> AxumResponse {
-    let res = user::update_profile(jwt.sub, req.into()).await;
+#[derive(Serialize, Deserialize, Debug)]
+struct GetResponse {
+    username: String,
+}
 
-    match res {
-        Ok(updated) => Response::success(Some(updated)).into_response(),
-        Err(e) => Response::from(e).into_response(),
+impl From<UserModel> for GetResponse {
+    fn from(user: UserModel) -> Self {
+        Self {
+            username: user.name,
+        }
     }
 }
 
+async fn get(jwt: Jwt) -> Response {
+    let user = user::get_user_by_id(jwt.sub).await;
+    match user {
+        Ok(user) => Response::success(Some(serde_json::to_value(GetResponse::from(user)).expect("wtf"))),
+        Err(e) => e.into(),
+    }
+}
+
+async fn put(jwt: Jwt, Json(req): Json<PutRequest>) -> Response {
+    let res = user::update_profile(jwt.sub, req.into()).await;
+    res.into()
+
+}
+
 pub fn route(path: &str) -> Router<AppState> {
-    Router::new().route(path, routing::put(put))
+    Router::new().route(path, routing::get(get).put(put))
 }

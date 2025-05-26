@@ -179,3 +179,9 @@ pub async fn update_profile(user_id: i32, param: UpdateProfileParam) -> Result<V
     
     Ok(ret)
 }
+
+pub async fn get_user_by_id(user_id: i32) -> Result<UserModel, UserError> {
+    let conn = REPO.clone().await;
+    let user = conn.find_by_id(user_id).await.ok_or(UserError::UserNotFound)?;
+    Ok(user)
+}
