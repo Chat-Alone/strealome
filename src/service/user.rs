@@ -150,9 +150,7 @@ pub async fn update_profile(repo: Arc<dyn Repository>, user_id: i32, param: Upda
         };
     }
     
-    
-    let conn = REPO.clone().await;
-    let mut user = conn.find_by_id(user_id).await.ok_or(UserError::UserNotFound)?;
+    let mut user = repo.find_by_id(user_id).await.ok_or(UserError::UserNotFound)?;
     
     if let Some(old_password) = &param.old_password {
         if !verify_password(old_password, &user.password) {
@@ -161,8 +159,9 @@ pub async fn update_profile(repo: Arc<dyn Repository>, user_id: i32, param: Upda
     }
     
     let ret = json!{{
-        "username": param.new_username,
-        "password": &param.new_password,
+        "user": {
+            "username": &param.new_username,
+        }
     }};
     
     if let Some(new_password) = &param.new_password {
@@ -172,9 +171,9 @@ pub async fn update_profile(repo: Arc<dyn Repository>, user_id: i32, param: Upda
     if let Some(new_username) = param.new_username {
         user.name = new_username;
     }
-    
-    
-    conn.update(user).await.map_err(|e| super::Error::from(e))?;
+
+
+    repo.update(user).await.map_err(|e| super::Error::from(e))?;
     
     Ok(ret)
 }
