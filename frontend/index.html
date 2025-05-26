@@ -535,6 +535,7 @@
             z-index: 1000;
             max-width: 250px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            pointer-events: none;
         }
 
         .keyboard-hint.show {
@@ -1447,7 +1448,7 @@
                 if (isLive) {
                     offlineOverlay.classList.remove('active');
                     // TODO: 在生产环境中替换为实际的直播流地址
-                    video.src = 'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4';
+                    // video.src = 'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4';
                     video.muted = true;
 
                     video.onloadeddata = function () {
