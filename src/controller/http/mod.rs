@@ -5,7 +5,7 @@ mod register;
 mod index;
 mod login;
 mod logout;
-mod password_change;
+mod profile;
 
 pub fn route(path: &str) -> Router<AppState> {
     let inner = Router::new()
@@ -13,7 +13,7 @@ pub fn route(path: &str) -> Router<AppState> {
         .merge(login::route("/login"))
         .merge(logout::route("/logout"))
         .merge(register::route("/register"))
-        .merge(password_change::route("/password/change"));
+        .merge(profile::route("/user/profile"));
     
     if path == "/" {
         inner
