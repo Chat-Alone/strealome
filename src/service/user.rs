@@ -161,8 +161,9 @@ pub async fn update_profile(repo: Arc<dyn Repository>, user_id: i32, param: Upda
     }
     
     let ret = json!{{
-        "username": param.new_username,
-        "password": &param.new_password,
+        "user": {
+            "username": &param.new_username,
+        }
     }};
     
     if let Some(new_password) = &param.new_password {
