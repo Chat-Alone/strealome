@@ -15,7 +15,7 @@ pub enum Error {
 impl From<Error> for Response {
     fn from(e: Error) -> Self {
         match e {
-            Error::RepositoryError(e) => Response::fail(StatusCode::INTERNAL_SERVER_ERROR, None),
+            Error::RepositoryError(e) => Response::fail::<()>(StatusCode::INTERNAL_SERVER_ERROR, None),
         }
     }
 }

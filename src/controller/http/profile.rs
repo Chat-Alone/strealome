@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 use axum::{Json, Router, routing};
 use axum::extract::State;
-use axum::response::{Html, IntoResponse, Response as AxumResponse};
-use serde_json::json;
 use crate::model::UserModel;
-use crate::unwrap;
 use super::{Jwt, AppState, Response};
 use crate::service::user;
 

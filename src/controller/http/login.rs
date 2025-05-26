@@ -7,7 +7,7 @@ use axum::http::{HeaderValue, header::SET_COOKIE};
 use axum::response::{Html, IntoResponse, Response as AxumResponse};
 
 use super::{Jwt, AppState, Error, Response};
-use crate::{unwrap, USE_COOKIE};
+use crate::{unwrap};
 use crate::service::user;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,12 +47,12 @@ async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> Ax
     
     match user::handle_login(state.repository, req.into()).await {
         Ok(user) => {
-            let jwt = Jwt::new(user.id, state.jwt_exp_duration);
+            let jwt = Jwt::http(user.id, state.jwt_exp_duration);
             let token = jwt.encode(&state.jwt_secret).unwrap_or("wtf?".to_string());
             let post_res = PostResponse { token };
             let mut res = Response::success(Some(serde_json::to_value(&post_res).unwrap())).into_response();
             
-            if USE_COOKIE {
+            if state.jwt_auth_method.is_cookie() {
                 let cookie = format!(
                     "token={}; Max-Age={}; Path=/; HttpOnly; Secure; SameSite=Strict",
                     &post_res.token, state.jwt_exp_duration.num_seconds()

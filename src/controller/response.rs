@@ -36,7 +36,8 @@ impl Response {
         }
     }
     
-    pub fn success(payload: Option<Value>) -> Self {
+    pub fn success<T: Serialize>(payload: Option<T>) -> Self {
+        let payload = payload.map(|v| json!(v));
         Self::new(get_id(), true, StatusCode::OK, payload)
     }
     
@@ -44,7 +45,8 @@ impl Response {
         Self::new(get_id(), status_code == StatusCode::OK, status_code, None)
     }
     
-    pub fn fail(status_code: StatusCode, payload: Option<Value>) -> Self {
+    pub fn fail<T: Serialize>(status_code: StatusCode, payload: Option<T>) -> Self {
+        let payload = payload.map(|v| json!(v));
         Self::new(get_id(), false, status_code, payload)
     }
     
