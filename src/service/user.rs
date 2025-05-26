@@ -1,3 +1,4 @@
+use serde_json::{json, Value};
 use thiserror::Error as ThisError;
 
 use crate::REPO;
@@ -108,16 +109,73 @@ pub async fn handle_login(param: LoginParam) -> Result<UserModel, UserError> {
     Err(UserError::IncorrectCredentials)
 }
 
-pub async fn change_password(user_id: i32, new_password: &str) -> Result<i32, UserError> {
-    if !validate_password(new_password) {
-        return Err(UserError::InvalidPassword);
-    };
+// pub enum UpdateProfileParam {
+//     UpdateUsername {
+//         user_id: i32,
+//         new_username: String,
+//     },
+//     UpdatePassword {
+//         user_id: i32,
+//         old_password: String,
+//         new_password: String,
+//     },
+//     UpdateBoth {
+//         user_id: i32,
+//         old_password: String,
+//         new_password: String,
+//         new_username: String,
+//     },
+// }
+
+pub struct UpdateProfileParam {
+    pub old_password: Option<String>,
+    pub new_password: Option<String>,
+    pub new_username: Option<String>,
+}
+
+pub async fn update_profile(user_id: i32, param: UpdateProfileParam) -> Result<Value, UserError> {
+    if let Some(old_password) = &param.old_password {
+        if !validate_password(old_password) {
+            return Err(UserError::InvalidPassword);
+        };
+    }
+    if let Some(new_password) = &param.new_password {
+        if !validate_password(new_password) {
+            return Err(UserError::InvalidPassword);
+        };
+    }
+    
+    if let Some(new_username) = &param.new_username {
+        if !validate_username(new_username) {
+            return Err(UserError::InvalidUsername);
+        };
+    }
+    
     
     let conn = REPO.clone().await;
     let mut user = conn.find_by_id(user_id).await.ok_or(UserError::UserNotFound)?;
-    user.password = bcrypt_password(new_password, bcrypt::DEFAULT_COST);
+    
+    if let Some(old_password) = &param.old_password {
+        if !verify_password(old_password, &user.password) {
+            return Err(UserError::IncorrectCredentials);
+        };
+    }
+    
+    let ret = json!{{
+        "username": param.new_username,
+        "password": &param.new_password,
+    }};
+    
+    if let Some(new_password) = &param.new_password {
+        user.password = bcrypt_password(new_password, bcrypt::DEFAULT_COST);
+    }
+    
+    if let Some(new_username) = param.new_username {
+        user.name = new_username;
+    }
+    
     
     conn.update(user).await.map_err(|e| super::Error::from(e))?;
     
-    Ok(user_id)
+    Ok(ret)
 }
