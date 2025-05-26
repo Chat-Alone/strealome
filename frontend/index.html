@@ -735,7 +735,6 @@
         <button class="close-btn" tabindex="0">&times;</button>
     </div>
 
-    <!-- 键盘快捷键提示 -->
     <div id="keyboardHint" class="keyboard-hint">
         <h4>键盘快捷键</h4>
         <ul>
@@ -1359,21 +1358,74 @@
                     confirmError.addClass('hidden');
                 }
             });
-            settingsForm.on('submit', function (e) {
+
+            settingsForm.on('submit', async function (e) {
+                /*
+                * 用户个人资料更新 API 交互说明:
+                *
+                * 目的:            允许用户更新其用户名和/或密码。
+                * API 端点:        /user/profile
+                * HTTP 方法:       PUT
+                * 认证方式:        JWT (在 Authorization 头部中携带 Bearer Token, Token 从 localStorage['authToken'] 获取)
+                *
+                * 请求体 (Content-Type: application/json):
+                *   {
+                *     "currentPassword": "当前用户密码",     // 必填
+                *     "newUsername": "可选的新用户名",       // 可选, 如果提供且有效则发送
+                *     "newPassword": "可选的新密码"          // 可选, 如果提供且有效则发送
+                *   }
+                *
+                * 成功响应 (HTTP 状态码 2xx, 并且响应体中 "success": true, Content-Type: application/json):
+                *   {
+                *     "id": 123,
+                *     "success": true,
+                *     "payload": { // payload 可能为 null，或者不包含 message/user
+                *       "message": "描述性成功消息，例如 '用户名已更新'", // 可选
+                *       "user": { // 可选, 仅当用户名更新且后端决定返回时
+                *         "username": "更新后的用户名"
+                *       }
+                *     },
+                *     "created_at": "YYYY-MM-DDTHH:mm:ss.sssZ"
+                *   }
+                *   - 'payload.message' (如果存在且非空) 将用于提示框。
+                *   - 'payload.user.username' (如果存在) 将更新界面用户名。
+                *
+                * 逻辑失败响应 (HTTP 状态码 2xx, 但响应体中 "success": false, Content-Type: application/json):
+                *   {
+                *     "id": 456,
+                *     "success": false,
+                *     "payload": { // payload 可能为 null, 或不包含 error/message
+                *       "error": "具体的错误信息 (优先于 payload.message)",   // 可选
+                *       "message": "具体的错误信息 (若 payload.error 无)"     // 可选
+                *     },
+                *     // 或者错误信息在顶层:
+                *     "error": "具体的错误信息 (若payload中无, 优先于顶层message)", // 可选
+                *     "message": "具体的错误信息 (若payload和顶层error中无)",       // 可选
+                *     "created_at": "YYYY-MM-DDTHH:mm:ss.sssZ"
+                *   }
+                *   - 错误信息查找顺序: `payload.error`, `payload.message`, `error` (顶层), `message` (顶层).
+                *   - 如果上述字段均无有效错误信息，则显示 "操作失败，但未收到具体错误详情。"
+                *
+                * HTTP/网络错误响应 (HTTP 状态码非 2xx):
+                *   - 响应体结构不确定，可能包含上述错误信息字段，也可能无有效 JSON 体。
+                *   - 将尝试从响应体中提取错误信息，否则显示通用的HTTP错误提示。
+                */
                 e.preventDefault();
 
                 const newUsername = $('#newUsername').val().trim();
                 const newPassword = $('#newPassword').val();
                 const confirmPassword = $('#confirmPassword').val();
-                const currentPassword = $('#currentPassword').val();
+                const currentPasswordValue = $('#currentPassword').val();
 
                 let hasError = false;
+                $('#usernameError').addClass('hidden');
+                $('#passwordError').addClass('hidden');
+                $('#confirmError').addClass('hidden');
+                $('#currentPasswordError').addClass('hidden');
 
-                if (!currentPassword) {
+                if (!currentPasswordValue) {
                     $('#currentPasswordError').removeClass('hidden');
                     hasError = true;
-                } else {
-                    $('#currentPasswordError').addClass('hidden');
                 }
 
                 if (newUsername && !validateUsername(newUsername)) {
@@ -1386,7 +1438,6 @@
                         $('#passwordError').removeClass('hidden');
                         hasError = true;
                     }
-
                     if (newPassword !== confirmPassword) {
                         $('#confirmError').removeClass('hidden');
                         hasError = true;
@@ -1395,45 +1446,114 @@
 
                 if (hasError) return;
 
-                const updateData = { currentPassword };
+                const updateData = { currentPassword: currentPasswordValue };
+                if (newUsername) {
+                    updateData.newUsername = newUsername;
+                }
+                if (newPassword) {
+                    updateData.newPassword = newPassword;
+                }
 
-                if (newUsername) updateData.newUsername = newUsername;
-                if (newPassword) updateData.newPassword = newPassword;
-
-                // TODO: 发送用户信息更新请求到后端API
-                // const response = await fetch('/api/user/update', {
-                //     method: 'POST',
-                //     headers: { 'Content-Type': 'application/json' },
-                //     body: JSON.stringify(updateData)
-                // });
-
-                $('#saveSettingsBtn').prop('disabled', true).addClass('opacity-50');
+                $('#saveSettingsBtn').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
 
                 try {
-                    // TODO: 实际生产环境中移除这段模拟代码，使用实际的API响应
-                    setTimeout(() => {
-                        try {
-                            if (newUsername) {
-                                $('#username').text(newUsername);
-                            }
+                    const token = localStorage.getItem('authToken');
+                    if (!token) {
+                        $('#successMessage').text('用户未登录或会话已过期，请重新登录。');
+                        showToast('#successToast', 5000);
+                        $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+                        return;
+                    }
 
-                            closeSettingsModal();
+                    const response = await fetch('/user/profile', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(updateData)
+                    });
 
-                            $('#successMessage').text('个人信息更新成功!');
-                            showToast('#successToast', 3000);
-                        } catch (error) {
-                            console.error('设置更新过程中发生错误:', error);
-                            $('#successMessage').text('操作失败，请稍后重试');
-                            showToast('#successToast', 3000);
-                        } finally {
-                            $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50');
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (jsonError) {
+                        console.warn('未能解析服务器响应的JSON:', jsonError, '响应状态:', response.status);
+                    }
+
+                    if (response.ok && data && data.success === true) {
+                        let successMsg = '用户信息更新成功！';
+                        if (data.payload && typeof data.payload.message === 'string' && data.payload.message.trim() !== '') {
+                            successMsg = data.payload.message;
                         }
-                    }, 500);
-                } catch (error) {
-                    console.error('设置提交过程中发生错误:', error);
-                    $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50');
-                    $('#successMessage').text('操作失败，请稍后重试');
-                    showToast('#successToast', 3000);
+
+                        if (data.payload && data.payload.user && typeof data.payload.user.username === 'string') {
+                            $('#username').text(data.payload.user.username);
+                        }
+                        closeSettingsModal();
+                        $('#successMessage').text(successMsg);
+                        showToast('#successToast', 3000);
+                    } else {
+                        let errorMsg = '更新失败，请稍后重试。';
+
+                        if (!response.ok) {
+                            // HTTP 错误 (非 2xx)
+                            errorMsg = `请求失败 (状态码: ${response.status})。`;
+                            let specificErrorFromBody = '';
+                            if (data) { // 尝试从可能存在的JSON响应体中获取更具体错误
+                                if (data.payload && typeof data.payload === 'object') {
+                                    if (typeof data.payload.error === 'string' && data.payload.error.trim() !== '') specificErrorFromBody = data.payload.error;
+                                    else if (typeof data.payload.message === 'string' && data.payload.message.trim() !== '') specificErrorFromBody = data.payload.message;
+                                }
+                                if (!specificErrorFromBody) {
+                                    if (typeof data.error === 'string' && data.error.trim() !== '') specificErrorFromBody = data.error;
+                                    else if (typeof data.message === 'string' && data.message.trim() !== '') specificErrorFromBody = data.message;
+                                }
+                            }
+                            if (specificErrorFromBody) {
+                                errorMsg += ` 详情: ${specificErrorFromBody}`;
+                            }
+                            errorMsg += ' 请检查网络或稍后重试。';
+                        } else if (data === null) { // HTTP OK, 但JSON解析失败
+                            errorMsg = `服务器响应格式错误 (状态码: ${response.status})。请稍后重试。`;
+                        } else if (data.success === false) { // HTTP OK, JSON已解析, 业务逻辑失败 (success: false)
+                            let specificBusinessErrorFound = false;
+                            // payload.error
+                            if (data.payload && typeof data.payload === 'object' && typeof data.payload.error === 'string' && data.payload.error.trim() !== '') {
+                                errorMsg = data.payload.error;
+                                specificBusinessErrorFound = true;
+                            }
+                            // payload.message
+                            if (!specificBusinessErrorFound && data.payload && typeof data.payload === 'object' && typeof data.payload.message === 'string' && data.payload.message.trim() !== '') {
+                                errorMsg = data.payload.message;
+                                specificBusinessErrorFound = true;
+                            }
+                            // 顶层error
+                            if (!specificBusinessErrorFound && typeof data.error === 'string' && data.error.trim() !== '') {
+                                errorMsg = data.error;
+                                specificBusinessErrorFound = true;
+                            }
+                            // 顶层message
+                            if (!specificBusinessErrorFound && typeof data.message === 'string' && data.message.trim() !== '') {
+                                errorMsg = data.message;
+                                specificBusinessErrorFound = true;
+                            }
+                            // 通用业务失败消息
+                            if (!specificBusinessErrorFound) {
+                                errorMsg = '操作失败，但未收到具体错误详情。';
+                            }
+                        } else if (!data.hasOwnProperty('success')) { // HTTP OK, JSON已解析, 但缺少 'success' 字段
+                            errorMsg = '服务器响应无效 (缺少success字段)。请稍后重试。';
+                        }
+                        $('#successMessage').text(errorMsg);
+                        showToast('#successToast', 5000);
+                    }
+                } catch (networkError) {
+                    console.error('用户设置更新网络请求失败:', networkError);
+                    $('#successMessage').text('网络连接错误，请检查您的网络并稍后重试。');
+                    showToast('#successToast', 5000);
+                } finally {
+                    $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
                 }
             });
 
