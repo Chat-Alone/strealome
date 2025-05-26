@@ -45,7 +45,7 @@ async fn get(jwt: Option<Jwt>, State(state): State<AppState>) -> AxumResponse {
 
 async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> AxumResponse {
     
-    match user::handle_login(req.into()).await {
+    match user::handle_login(state.repository, req.into()).await {
         Ok(user) => {
             let jwt = Jwt::new(user.id, state.jwt_exp_duration);
             let token = jwt.encode(&state.jwt_secret).unwrap_or("wtf?".to_string());

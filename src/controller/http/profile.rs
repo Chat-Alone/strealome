@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use axum::{Json, Router, routing};
+use axum::extract::State;
 use axum::response::{Html, IntoResponse, Response as AxumResponse};
 use serde_json::json;
 use crate::model::UserModel;
@@ -40,16 +41,16 @@ impl From<UserModel> for GetResponse {
     }
 }
 
-async fn get(jwt: Jwt) -> Response {
-    let user = user::get_user_by_id(jwt.sub).await;
+async fn get(jwt: Jwt, State(state): State<AppState>) -> Response {
+    let user = user::get_user_by_id(state.repository, jwt.sub).await;
     match user {
         Ok(user) => Response::success(Some(serde_json::to_value(GetResponse::from(user)).expect("wtf"))),
         Err(e) => e.into(),
     }
 }
 
-async fn put(jwt: Jwt, Json(req): Json<PutRequest>) -> Response {
-    let res = user::update_profile(jwt.sub, req.into()).await;
+async fn put(jwt: Jwt, State(state): State<AppState>, Json(req): Json<PutRequest>) -> Response {
+    let res = user::update_profile(state.repository, jwt.sub, req.into()).await;
     res.into()
 
 }

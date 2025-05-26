@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tokio::fs::read_to_string;
 use axum::{Json, Router, routing};
+use axum::extract::State;
 use axum::response::{Html, IntoResponse, Response as AxumResponse};
 use serde_json::json;
 
@@ -28,9 +29,9 @@ async fn get() -> AxumResponse {
     Html(str).into_response()
 }
 
-async fn post(Json(param): Json<PostRequest>) -> Response {
+async fn post(State(state): State<AppState>, Json(param): Json<PostRequest>) -> Response {
     let param = param.into();
-    let user = user::handle_register(param).await;
+    let user = user::handle_register(state.repository, param).await;
     if let Err(e) = user {
         return e.into();
     }
