@@ -261,23 +261,27 @@
                 <h1 class="text-2xl sm:text-3xl font-bold mb-1">Stream Alone</h1>
                 <p class="text-[var(--text-secondary)] text-sm sm:text-base">登录您的账户</p>
             </div>
-
+            
             <form id="loginForm" class="space-y-5 p-6 rounded-lg">
-                <div class="input-group">
-                    <i class="fas fa-user input-icon"></i>
-                    <input type="text" id="username" name="username"
-                        class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
-                        placeholder="用户名">
+                <div>
+                    <div class="input-group">
+                        <i class="fas fa-user input-icon"></i>
+                        <input type="text" id="username" name="username"
+                            class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
+                            placeholder="用户名">
+                    </div>
                 </div>
 
-                <div class="input-group">
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" id="password" name="password"
-                        class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
-                        placeholder="密码">
-                    <span class="password-toggle" id="togglePassword">
-                        <i class="fas fa-eye"></i>
-                    </span>
+                <div>
+                    <div class="input-group">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="password" name="password"
+                            class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
+                            placeholder="密码">
+                        <span class="password-toggle" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
                 </div>
 
                 <div class="flex items-center">

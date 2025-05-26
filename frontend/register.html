@@ -190,7 +190,6 @@
         input[type="password"] {
             padding-right: 2.5rem !important;
         }
-
     </style>
 </head>
 
@@ -217,34 +216,46 @@
             <div class="text-center mb-8">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-1">Stream Alone</h1>
                 <p class="text-[var(--text-secondary)] text-sm sm:text-base">创建您的账户</p>
-            </div>
-
-            <form id="registerForm" class="space-y-5 p-6 rounded-lg">
-                <div class="input-group">
-                    <i class="fas fa-user input-icon"></i>
-                    <input type="text" id="username" name="username"
-                        class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
-                        placeholder="用户名">
+            </div>            <form id="registerForm" class="space-y-5 p-6 rounded-lg">
+                <div>
+                    <div class="input-group">
+                        <i class="fas fa-user input-icon"></i>
+                        <input type="text" id="username" name="username"
+                            class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
+                            placeholder="用户名">
+                    </div>
                 </div>
 
-                <div class="input-group">
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" id="password" name="password"
-                        class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
-                        placeholder="密码">
-                    <span class="password-toggle" id="togglePassword">
-                        <i class="fas fa-eye"></i>
-                    </span>
+                <div>
+                    <div class="input-group">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="password" name="password"
+                            class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
+                            placeholder="密码">
+                        <span class="password-toggle" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
+                    <div class="mt-2 space-y-1">
+                        <p id="passwordLengthError" class="text-red-500 text-xs hidden">长度必须在8~32位之间</p>
+                        <p id="passwordCharError" class="text-red-500 text-xs hidden">只能包含ASCII字母和数字</p>
+                        <p id="passwordComboError" class="text-red-500 text-xs hidden">必须同时包含至少一个字母和一个数字</p>
+                    </div>
                 </div>
 
-                <div class="input-group">
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" id="confirmPassword" name="confirmPassword"
-                        class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
-                        placeholder="确认密码">
-                    <span class="password-toggle" id="toggleConfirmPassword">
-                        <i class="fas fa-eye"></i>
-                    </span>
+                <div>
+                    <div class="input-group">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="confirmPassword" name="confirmPassword"
+                            class="input-field w-full px-4 py-3 rounded-md border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] focus:border-transparent transition-colors"
+                            placeholder="确认密码">
+                        <span class="password-toggle" id="toggleConfirmPassword">
+                            <i class="fas fa-eye"></i>
+                        </span>
+                    </div>
+                    <div class="mt-2">
+                        <p id="confirmPasswordError" class="text-red-500 text-xs hidden">两次输入的密码不一致</p>
+                    </div>
                 </div>
 
                 <button type="submit" id="registerBtn"
@@ -327,17 +338,80 @@
                     hideToast(selector);
                 });
             }
-
+            
             function hideToast(selector) {
                 $(selector).removeClass('show');
             }
 
+            function validatePassword(password) {
+                const result = {
+                    isValid: true,
+                    errors: []
+                };
+
+                if (password.length < 8 || password.length > 32) {
+                    result.isValid = false;
+                    result.errors.push('length');
+                }
+
+                if (!/^[a-zA-Z0-9]+$/.test(password)) {
+                    result.isValid = false;
+                    result.errors.push('chars');
+                }
+
+                const hasLetter = /[a-zA-Z]/.test(password);
+                const hasNumber = /[0-9]/.test(password);
+                if (!hasLetter || !hasNumber) {
+                    result.isValid = false;
+                    result.errors.push('combo');
+                }
+
+                return result;
+            }
+
+            $('#password').on('input', function () {
+                const password = $(this).val();
+                const validation = validatePassword(password);
+
+                $('#passwordLengthError').addClass('hidden');
+                $('#passwordCharError').addClass('hidden');
+                $('#passwordComboError').addClass('hidden');
+
+                if (password && !validation.isValid) {
+                    validation.errors.forEach(error => {
+                        if (error === 'length') {
+                            $('#passwordLengthError').removeClass('hidden');
+                        } else if (error === 'chars') {
+                            $('#passwordCharError').removeClass('hidden');
+                        } else if (error === 'combo') {
+                            $('#passwordComboError').removeClass('hidden');
+                        }
+                    });
+                }
+            });
+
+            $('#confirmPassword').on('input', function () {
+                const password = $('#password').val();
+                const confirmPassword = $(this).val();
+
+                if (confirmPassword && password !== confirmPassword) {
+                    $('#confirmPasswordError').removeClass('hidden');
+                } else {
+                    $('#confirmPasswordError').addClass('hidden');
+                }
+            });
+            
             $('#registerForm').on('submit', function (e) {
                 e.preventDefault();
 
                 const username = $('#username').val().trim();
                 const password = $('#password').val();
                 const confirmPassword = $('#confirmPassword').val();
+
+                $('#passwordLengthError').addClass('hidden');
+                $('#passwordCharError').addClass('hidden');
+                $('#passwordComboError').addClass('hidden');
+                $('#confirmPasswordError').addClass('hidden');
 
                 if (!username) {
                     $('#errorMessage').text('请输入用户名');
@@ -351,9 +425,22 @@
                     return;
                 }
 
+                const passwordValidation = validatePassword(password);
+                if (!passwordValidation.isValid) {
+                    passwordValidation.errors.forEach(error => {
+                        if (error === 'length') {
+                            $('#passwordLengthError').removeClass('hidden');
+                        } else if (error === 'chars') {
+                            $('#passwordCharError').removeClass('hidden');
+                        } else if (error === 'combo') {
+                            $('#passwordComboError').removeClass('hidden');
+                        }
+                    });
+                    return;
+                }
+
                 if (password !== confirmPassword) {
-                    $('#errorMessage').text('两次输入的密码不一致');
-                    showToast('#errorToast');
+                    $('#confirmPasswordError').removeClass('hidden');
                     return;
                 }
 
@@ -361,13 +448,13 @@
                 $('#registerSpinner').removeClass('hidden');
                 $('#registerBtn').prop('disabled', true).addClass('opacity-75');
 
-                fetch('/register',{
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username, password }),
-                    })
+                fetch('/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password }),
+                })
                     .then(response => {
                         if (!response.ok) throw new Error(`jb，飞了：${response.statusText}`);
                         return response;
@@ -382,7 +469,7 @@
                                 window.location.href = '/login';
                             }, 2000);
                         } else {
-                            $('#errorMessage').text(data?.payload?.error ??  '未知错误');
+                            $('#errorMessage').text(data?.payload?.error ?? '未知错误');
                             showToast('#errorToast');
                         }
                     })

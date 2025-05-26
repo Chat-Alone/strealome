@@ -703,7 +703,11 @@
                             class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
                         <input type="password" id="confirmPassword" placeholder="确认新密码" tabindex="0"
                             class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
-                        <p id="passwordError" class="text-red-500 text-xs hidden">密码必须包含至少8个字符、一个大写字母和一个数字</p>
+                        <div class="space-y-1">
+                            <p id="passwordLengthError" class="text-red-500 text-xs hidden">长度必须在8~32位之间</p>
+                            <p id="passwordCharError" class="text-red-500 text-xs hidden">只能包含ASCII字母和数字</p>
+                            <p id="passwordComboError" class="text-red-500 text-xs hidden">必须同时包含至少一个字母和一个数字</p>
+                        </div>
                         <p id="confirmError" class="text-red-500 text-xs hidden">两次输入的密码不一致</p>
                     </div>
                 </div>
@@ -1322,11 +1326,31 @@
             function validateUsername(username) {
                 return username.length >= 3 && username.length <= 16;
             }
-
+         
             function validatePassword(password) {
-                const hasUpperCase = /[A-Z]/.test(password);
+                const result = {
+                    isValid: true,
+                    errors: []
+                };
+
+                if (password.length < 8 || password.length > 32) {
+                    result.isValid = false;
+                    result.errors.push('length');
+                }
+
+                if (!/^[a-zA-Z0-9]+$/.test(password)) {
+                    result.isValid = false;
+                    result.errors.push('chars');
+                }
+
+                const hasLetter = /[a-zA-Z]/.test(password);
                 const hasNumber = /[0-9]/.test(password);
-                return password.length >= 8 && hasUpperCase && hasNumber;
+                if (!hasLetter || !hasNumber) {
+                    result.isValid = false;
+                    result.errors.push('combo');
+                }
+
+                return result;
             }
 
             $('#newUsername').on('input', function () {
@@ -1338,24 +1362,32 @@
                 } else {
                     errorElem.addClass('hidden');
                 }
-            });
-
-            $('#newPassword, #confirmPassword').on('input', function () {
+            }); $('#newPassword, #confirmPassword').on('input', function () {
                 const password = $('#newPassword').val();
                 const confirmPassword = $('#confirmPassword').val();
-                const passwordError = $('#passwordError');
-                const confirmError = $('#confirmError');
 
-                if (password && !validatePassword(password)) {
-                    passwordError.removeClass('hidden');
-                } else {
-                    passwordError.addClass('hidden');
+                $('#passwordLengthError').addClass('hidden');
+                $('#passwordCharError').addClass('hidden');
+                $('#passwordComboError').addClass('hidden');
+                $('#confirmError').addClass('hidden');
+
+                if (password) {
+                    const validation = validatePassword(password);
+                    if (!validation.isValid) {
+                        validation.errors.forEach(error => {
+                            if (error === 'length') {
+                                $('#passwordLengthError').removeClass('hidden');
+                            } else if (error === 'chars') {
+                                $('#passwordCharError').removeClass('hidden');
+                            } else if (error === 'combo') {
+                                $('#passwordComboError').removeClass('hidden');
+                            }
+                        });
+                    }
                 }
 
                 if (confirmPassword && password !== confirmPassword) {
-                    confirmError.removeClass('hidden');
-                } else {
-                    confirmError.addClass('hidden');
+                    $('#confirmError').removeClass('hidden');
                 }
             });
 
@@ -1416,10 +1448,12 @@
                 const newPassword = $('#newPassword').val();
                 const confirmPassword = $('#confirmPassword').val();
                 const currentPasswordValue = $('#currentPassword').val();
-
+                
                 let hasError = false;
                 $('#usernameError').addClass('hidden');
-                $('#passwordError').addClass('hidden');
+                $('#passwordLengthError').addClass('hidden');
+                $('#passwordCharError').addClass('hidden');
+                $('#passwordComboError').addClass('hidden');
                 $('#confirmError').addClass('hidden');
                 $('#currentPasswordError').addClass('hidden');
 
@@ -1434,8 +1468,17 @@
                 }
 
                 if (newPassword) {
-                    if (!validatePassword(newPassword)) {
-                        $('#passwordError').removeClass('hidden');
+                    const validation = validatePassword(newPassword);
+                    if (!validation.isValid) {
+                        validation.errors.forEach(error => {
+                            if (error === 'length') {
+                                $('#passwordLengthError').removeClass('hidden');
+                            } else if (error === 'chars') {
+                                $('#passwordCharError').removeClass('hidden');
+                            } else if (error === 'combo') {
+                                $('#passwordComboError').removeClass('hidden');
+                            }
+                        });
                         hasError = true;
                     }
                     if (newPassword !== confirmPassword) {
