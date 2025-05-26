@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use serde_json::{json, Value};
 use thiserror::Error as ThisError;
 
@@ -35,7 +36,7 @@ impl From<UserError> for Response {
 }
 
 fn validate_username(username: &str) -> bool {
-    username.len() >= 4 && username.len() <= 16
+    username.len() >= 4 && username.len() <= 24
 }
 
 fn validate_password(password: &str) -> bool {
@@ -64,7 +65,7 @@ pub struct RegisterParam {
     pub password: String,
 }
 
-pub async fn handle_register(param: RegisterParam) -> Result<UserModel, UserError> {
+pub async fn handle_register(repo: Arc<dyn Repository>, param: RegisterParam) -> Result<UserModel, UserError> {
     let RegisterParam { username, password } = param;
     if !validate_username(&username) {
         return Err(UserError::InvalidUsername);
@@ -73,14 +74,13 @@ pub async fn handle_register(param: RegisterParam) -> Result<UserModel, UserErro
         return Err(UserError::InvalidPassword);
     };
     
-    let conn = REPO.clone().await;
-    let user = conn.find_by_name(&username).await.map_err(|e| super::Error::from(e))?;
+    let user = repo.find_by_name(&username).await.map_err(|e| super::Error::from(e))?;
     if user.is_some() {
         return Err(UserError::UserAlreadyExists);
     };
     
     let crypted_password = bcrypt_password(&password, bcrypt::DEFAULT_COST);
-    let user = conn.create(UserModel::new_user(username, crypted_password)).await;
+    let user = repo.create(UserModel::new_user(username, crypted_password)).await;
     Ok(user)
 }
 
@@ -89,7 +89,7 @@ pub struct LoginParam {
     pub password: String,
 }
 
-pub async fn handle_login(param: LoginParam) -> Result<UserModel, UserError> {
+pub async fn handle_login(repo: Arc<dyn Repository>, param: LoginParam) -> Result<UserModel, UserError> {
     let LoginParam { username, password } = param;
     if !validate_username(&username) {
         return Err(UserError::InvalidUsername);
@@ -98,8 +98,7 @@ pub async fn handle_login(param: LoginParam) -> Result<UserModel, UserError> {
         return Err(UserError::InvalidPassword);
     };
     
-    let conn = REPO.clone().await;
-    let user = conn.find_by_name(&username).await.map_err(|e| super::Error::from(e))?;
+    let user = repo.find_by_name(&username).await.map_err(|e| super::Error::from(e))?;
     if let Some(user) = user {
         if verify_password(&password, &user.password) {
             return Ok(user)
@@ -133,7 +132,7 @@ pub struct UpdateProfileParam {
     pub new_username: Option<String>,
 }
 
-pub async fn update_profile(user_id: i32, param: UpdateProfileParam) -> Result<Value, UserError> {
+pub async fn update_profile(repo: Arc<dyn Repository>, user_id: i32, param: UpdateProfileParam) -> Result<Value, UserError> {
     if let Some(old_password) = &param.old_password {
         if !validate_password(old_password) {
             return Err(UserError::InvalidPassword);
@@ -178,4 +177,9 @@ pub async fn update_profile(user_id: i32, param: UpdateProfileParam) -> Result<V
     conn.update(user).await.map_err(|e| super::Error::from(e))?;
     
     Ok(ret)
+}
+
+pub async fn get_user_by_id(repo: Arc<dyn Repository>, user_id: i32) -> Result<UserModel, UserError> {
+    let user = repo.find_by_id(user_id).await.ok_or(UserError::UserNotFound)?;
+    Ok(user)
 }
