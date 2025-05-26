@@ -36,7 +36,7 @@ impl From<UserError> for Response {
 }
 
 fn validate_username(username: &str) -> bool {
-    username.len() >= 4 && username.len() <= 16
+    username.len() >= 4 && username.len() <= 24
 }
 
 fn validate_password(password: &str) -> bool {
