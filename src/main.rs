@@ -7,7 +7,7 @@ mod signal;
 use std::sync::{Arc};
 use chrono::Duration;
 use tokio::task::JoinHandle;
-use repository::{DuckDBRepo, RepoConfig };
+use repository::{ Repo, RepoConfig };
 use crate::repository::Repository;
 
 
@@ -27,7 +27,7 @@ async fn ctrl_c_task() -> JoinHandle<()> {
 
 #[tokio::main]
 async fn main() {
-    let repo = DuckDBRepo::conn().await;
+    let repo = Repo::conn().await;
 
     let mut serve_task = controller::listen(
         "127.0.0.1:3000",
