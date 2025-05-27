@@ -26,7 +26,6 @@ pub enum RoomError {
 
 impl From<RoomError> for Response {
     fn from(e: RoomError) -> Self {
-        eprintln!("RoomError: {e}");
         Response::error(&e.to_string())
     }
 }
@@ -50,7 +49,7 @@ impl Room {
         }
     }
 
-    fn contains_user(&self, user_id: i32) -> bool {
+    pub fn contains_user(&self, user_id: i32) -> bool {
         self.users.contains_key(&user_id)
     }
 
@@ -109,7 +108,7 @@ impl Rooms {
         new_room
     }
 
-    pub fn get_room_by_link(&self, room_link: &str) -> Result<Room, RoomError> {
+    fn get_room_by_link(&self, room_link: &str) -> Result<Room, RoomError> {
         self.rooms.get(room_link).map(|r| r.clone()).ok_or(RoomError::RoomNotFound)
     }
     
@@ -131,6 +130,10 @@ pub fn rooms() -> Rooms {
 
 pub fn verify_room(room_link: &str) -> Result<(), RoomError> {
     rooms().rooms.contains_key(room_link).then_some(()).ok_or(RoomError::RoomNotFound)
+}
+
+pub fn get_room_by_link(room_link: &str) -> Result<Room, RoomError> {
+    rooms().get_room_by_link(room_link)
 }
 
 fn gen_rand_string(len: usize) -> String {

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicI32;
 use chrono::{DateTime, Utc};
+use serde::Serialize;
+use serde_json::json;
 use tokio::sync::RwLock;
 
 static ID: AtomicI32  = AtomicI32::new(0);
@@ -15,16 +17,29 @@ pub struct ChatMessage {
     room:       String,
     content:    RwLock<ChatMessageContent>,
     created_at: DateTime<Utc>,
+    
+    formatted:  Arc<RwLock<String>>,
 }
 
 impl ChatMessage {
     pub fn new(author_id: i32, room: String, content: ChatMessageContent) -> Self {
+        let id = gen_id();
+        let created_at = Utc::now();
+        let formatted = json!({
+            "id": id,
+            "author_id": author_id,
+            "room": room,
+            "content": content,
+            "created_at": created_at.to_rfc3339(),
+        }).to_string();
+        
         Self {
-            id: gen_id(),
-            author_id,
+            id,
             room,
+            author_id,
+            created_at,
             content: RwLock::new(content),
-            created_at: Utc::now(),
+            formatted: Arc::new(RwLock::new(formatted)),
         }
     }
     
@@ -32,11 +47,21 @@ impl ChatMessage {
         self.author_id
     }
     
+    pub async fn serialize(&self) -> String {
+        self.formatted.read().await.clone()
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(tag = "type", content = "content")]
 pub enum ChatMessageContent {
+    #[serde(rename = "text")]
     Text(String),
+    #[serde(rename = "meme")]
     Meme(String),
-    File(String, Vec<u8>),
+    #[serde(rename = "file")]
+    File {
+        name: String,
+        raw: Vec<u8>
+    },
 }
