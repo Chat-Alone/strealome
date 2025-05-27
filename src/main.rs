@@ -12,7 +12,7 @@ use crate::repository::Repository;
 
 
 static REPO_CFG: RepoConfig = RepoConfig {
-    url: Some("res/duck.db"),
+    url: Some("res/sqlite.db"),
     schema: Some("strealome"),
     username: None,
     password: None,

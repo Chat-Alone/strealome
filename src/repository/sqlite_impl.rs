@@ -18,7 +18,6 @@ pub static SQLITE_REPO: LazyLock<SqliteRepo> =
 
 #[derive(Debug)]
 pub struct SqliteRepo {
-    schema_name: String,
     conn: Arc<Mutex<Connection>>,
 }
 
@@ -30,7 +29,6 @@ impl Repository for SqliteRepo {
 
     async fn clone(&self) -> Self {
         Self {
-            schema_name: self.schema_name.clone(),
             conn: self.conn.clone()
         }
     }
@@ -38,19 +36,17 @@ impl Repository for SqliteRepo {
 
 
 impl SqliteRepo {
-    fn new(conn: Connection, schema_name: String) -> Self {
+    fn new(conn: Connection) -> Self {
         Self {
-            schema_name,
             conn: Arc::new(Mutex::new(conn))
         }
     }
 
     fn init(cfg: &RepoConfig) -> Result<Self, Error> {
-        if let RepoConfig { url: Some(url), schema: Some(schema), .. } = cfg {
+        if let RepoConfig { url: Some(url), .. } = cfg {
             let conn = Connection::open(url)?;
-            let ret = Self::new(conn, schema.to_string());
+            let ret = Self::new(conn);
 
-            ret.init_schema()?;
             ret.init_user_table()?;
 
             Ok(ret)
@@ -60,26 +56,17 @@ impl SqliteRepo {
 
     }
 
-    fn init_schema(&self) -> SqliteResult<()> {
-        self.conn.try_lock().unwrap().execute(
-            &format!("CREATE SCHEMA IF NOT EXISTS {}", self.schema_name),[]
-        ).map(|_| ())
-    }
 
     fn init_user_table(&self) -> SqliteResult<()> {
         let conn = self.conn.try_lock().unwrap();
 
-        conn.execute(&format!(
-            "CREATE SEQUENCE IF NOT EXISTS {}.users_id_seq START 1;", self.schema_name),[]
-        )?;
-
-        conn.execute(&format!(
-            "CREATE TABLE IF NOT EXISTS {}.users (
-                id          INTEGER         PRIMARY KEY DEFAULT     nextval('{}.users_id_seq'),
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS users (
+                id          INTEGER         PRIMARY KEY AUTOINCREMENT,
                 name        TEXT            NOT NULL    UNIQUE,
                 password    TEXT            NOT NULL,
-                created_at  TIMESTAMPTZ     NOT NULL    DEFAULT     NOW()
-            )", self.schema_name, self.schema_name),[]
+                created_at  TEXT            NOT NULL    DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now'))
+            )",[]
         ).map(|_| ())
     }
 }
@@ -88,11 +75,17 @@ impl<'a> TryFrom<&Row<'a>> for UserModel {
     type Error = SqliteError;
 
     fn try_from(row: &Row) -> Result<Self, Self::Error> {
+        const FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f";
+        let created_at = 
+            DateTime::parse_from_str(&row.get::<_, String>(3)?, FORMAT)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or(Utc::now());
+        
         Ok(Self {
             id: row.get(0)?,
             name: row.get(1)?,
             password: row.get(2)?,
-            created_at: DateTime::from_timestamp_millis(row.get(3)?).unwrap_or(Utc::now()),
+            created_at,
         })
     }
 }
@@ -104,13 +97,13 @@ impl CRUD for SqliteRepo {
 
     async fn find_by_id(&self, id: i32) -> Option<UserModel> {
         let conn = self.conn.lock().await;
-        let mut stmt = conn.prepare(&format!("SELECT * FROM {}.users WHERE id = ?", self.schema_name)).unwrap();
+        let mut stmt = conn.prepare("SELECT * FROM users WHERE id = ?").unwrap();
         stmt.query_row(&[&id], |row| { row.try_into() }).ok()
     }
 
     async fn find_all(&self) -> Vec<UserModel> {
         let conn = self.conn.lock().await;
-        let mut stmt = conn.prepare(&format!("SELECT * FROM {}.users", self.schema_name)).unwrap();
+        let mut stmt = conn.prepare("SELECT * FROM users").unwrap();
         if let Ok(iter) = stmt.query_map([], |row| { row.try_into() }) {
             iter.filter_map(|row| row.ok()).collect()
         } else {
@@ -121,7 +114,7 @@ impl CRUD for SqliteRepo {
     async fn create(&self, user: UserModel) -> UserModel {
         let conn = self.conn.lock().await;
         let _res = conn.execute(
-            &format!("INSERT INTO {}.users (name, password) VALUES (?, ?)", self.schema_name),
+            "INSERT INTO users (name, password) VALUES (?, ?)",
             params![&user.name, &user.password]
         ).unwrap();
 
@@ -131,7 +124,7 @@ impl CRUD for SqliteRepo {
     async fn update(&self, user: UserModel) -> Result<UserModel, Error> {
         let conn = self.conn.lock().await;
         let user = conn.query_row(
-            &format!("UPDATE {}.users SET name = ?, password = ? WHERE id = ? RETURNING *", self.schema_name),
+            "UPDATE users SET name = ?, password = ? WHERE id = ? RETURNING *",
             params![&user.name, &user.password, &user.id], |row| { UserModel::try_from(row) }
         )?;
 
@@ -157,7 +150,7 @@ impl UserRepo for SqliteRepo {
     async fn find_by_name(&self, name: &str) -> Result<Option<UserModel>, Error> {
         let conn = self.conn.lock().await;
         let res = conn.query_row(
-            &format!("SELECT * FROM {}.users WHERE name = ?", self.schema_name),
+            "SELECT * FROM users WHERE name = ?",
             &[name], |row| { UserModel::try_from(row) }
         );
         match res {
