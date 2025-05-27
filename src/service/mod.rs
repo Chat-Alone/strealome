@@ -1,5 +1,6 @@
 pub mod user;
 pub mod chat;
+pub mod room;
 mod error;
 
 pub use error::Error;

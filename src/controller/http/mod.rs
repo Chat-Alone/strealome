@@ -7,6 +7,8 @@ mod login;
 mod logout;
 mod profile;
 mod gateway;
+mod room;
+mod chat;
 
 pub fn route(path: &str, app_state: AppState) -> Router {
     let inner = Router::new()
