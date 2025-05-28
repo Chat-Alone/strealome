@@ -800,26 +800,8 @@
 
                     const newApiRoom = responsePayload.room;
 
-                    const newRoomEntry = {
-                        id: newApiRoom.share_link,
-                        name: newApiRoom.name,
-                        creator: AppState.currentUser.name,
-                        createTime: formatISODate(newApiRoom.created_at),
-                        status: 'offline',
-                        audienceCount: 0
-                    };
-
-                    AppState.allRooms.unshift(newRoomEntry);
-
-                    if (newRoomEntry.creator === AppState.currentUser.name) {
-                        AppState.myRooms.unshift(newRoomEntry);
-                    }
-
-                    AppState.myRoomsCurrentPage = 1;
-                    AppState.allRoomsCurrentPage = 1;
-                    this.renderMyRooms();
-                    this.renderAllRooms();
-                    this.showNotification('房间创建成功！', 'success');
+                    this.showNotification('房间创建成功，正在跳转...', 'success');
+                    window.location.href = `/share/${newApiRoom.share_link}`;
 
                 } catch (error) {
                     this.showNotification(`创建房间失败: ${error.message}`, 'error');
