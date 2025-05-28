@@ -9,7 +9,7 @@ async fn upgrade(
     jwt: Jwt, State(state): State<AppState>,
     ws: WebSocketUpgrade, Path(room_link): Path<String>
 ) -> AxumResponse {
-    if let Err(e) = room::verify_room(&room_link) {
+    if let Err(e) = room::get_room_by_link(&room_link) {
         return Response::from(e).into_response();
     }
 
