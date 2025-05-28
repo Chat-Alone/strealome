@@ -95,7 +95,7 @@
                     </button>
 
                     <div class="flex items-center space-x-3 text-sm">
-                        <div
+                        <div id="current-user-display"
                             class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full">
                             <i class="fas fa-user mr-1"></i>
                             <span class="font-medium">User123</span>
@@ -114,9 +114,16 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <section class="mb-12" aria-labelledby="all-rooms-heading">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-                <h2 id="all-rooms-heading" class="text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-0">
-                    热门直播
-                </h2>
+                <div class="flex items-center gap-4 mb-4 sm:mb-0">
+                    <h2 id="all-rooms-heading" class="text-2xl font-bold text-gray-900 dark:text-white">
+                        房间列表
+                    </h2>
+                    <button id="join-room-btn"
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors text-sm">
+                        <i class="fas fa-users mr-2"></i>
+                        加入房间
+                    </button>
+                </div>
 
                 <div class="flex flex-col sm:flex-row gap-3">
                     <div class="relative">
@@ -237,27 +244,74 @@
         </div>
     </div>
 
-    <div id="delete-confirm-modal"
+    <div id="join-room-modal"
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden" role="dialog"
-        aria-modal="true" aria-labelledby="delete-confirm-modal-title">
+        aria-modal="true" aria-labelledby="join-room-modal-title">
         <div class="bg-white dark:bg-[#0A0A0A] rounded-lg shadow-xl w-full max-w-md">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h3 id="delete-confirm-modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">确认删除
+                    <h3 id="join-room-modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">
+                        <i class="fas fa-users mr-2 text-green-600"></i>
+                        加入房间
                     </h3>
-                    <button id="close-delete-modal" aria-label="Close delete confirmation modal"
+                    <button id="close-join-modal" aria-label="Close join room modal"
                         class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <p id="delete-confirm-message" class="text-sm text-gray-700 dark:text-gray-300 mb-6">
-                    您确定要删除这个房间吗？此操作无法撤销。</p>
+
+                <div class="mb-4">
+                    <label for="share-code-input"
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">分享代码</label>
+                    <input type="text" id="share-code-input" placeholder="请输入房间分享代码..."
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        输入主播分享给您的房间代码
+                    </p>
+                </div>
+
                 <div class="flex space-x-3">
-                    <button id="confirm-delete-room"
-                        class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">
-                        确认删除
+                    <button id="confirm-join-room"
+                        class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors">
+                        <i class="fas fa-sign-in-alt mr-2"></i>
+                        加入房间
                     </button>
-                    <button id="cancel-delete-room"
+                    <button id="cancel-join-room"
+                        class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors">
+                        取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="transfer-host-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden" role="dialog"
+        aria-modal="true" aria-labelledby="transfer-host-modal-title">
+        <div class="bg-white dark:bg-[#0A0A0A] rounded-lg shadow-xl w-full max-w-md">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 id="transfer-host-modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">
+                        转移房间所有权</h3>
+                    <button id="close-transfer-modal" aria-label="Close transfer host modal"
+                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <p id="transfer-room-name-info" class="text-sm text-gray-700 dark:text-gray-300 mb-4"></p>
+                <div class="mb-4">
+                    <label for="new-host-name-input"
+                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">新主持人用户名</label>
+                    <input type="text" id="new-host-name-input" placeholder="请输入新主持人的用户名..."
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                </div>
+                <div class="flex space-x-3">
+                    <button id="confirm-transfer-host"
+                        class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors">
+                        确认转移
+                    </button>
+                    <button id="cancel-transfer-host"
                         class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors">
                         取消
                     </button>
@@ -270,37 +324,42 @@
     <script>
         const AppState = {
             theme: localStorage.getItem('theme') || 'light',
+            currentUser: { internalId: 'user123_internal', name: 'User123' },
+            //TODO: Test Data Start
             allRooms: [
-                { id: 1, name: '与朋友的游戏时光', creator: '主播张三', createTime: '2024-05-28 10:00 AM', status: 'live', coverImage: 'https://placehold.co/300x200/3498db/ffffff?text=游戏时光' },
-                { id: 2, name: '音乐分享会', creator: '音乐达人李四', createTime: '2024-05-28 09:30 AM', status: 'live', coverImage: 'https://placehold.co/300x200/9b59b6/ffffff?text=音乐分享' },
-                { id: 3, name: '技术讨论室', creator: '程序员王五', createTime: '2024-05-27 08:00 PM', status: 'offline', coverImage: 'https://placehold.co/300x200/6b7280/ffffff?text=技术讨论' },
-                { id: 4, name: '美食制作直播', creator: '厨师赵六', createTime: '2024-05-27 07:00 PM', status: 'offline', coverImage: 'https://placehold.co/300x200/059669/ffffff?text=美食制作' },
-                { id: 5, name: '晨间瑜伽练习', creator: '瑜伽导师Alice', createTime: '2024-05-29 07:00 AM', status: 'live', coverImage: 'https://placehold.co/300x200/ec4899/ffffff?text=瑜伽直播' },
-                { id: 6, name: '代码审查与重构', creator: '资深架构师Bob', createTime: '2024-05-29 08:00 AM', status: 'offline', coverImage: 'https://placehold.co/300x200/8b5cf6/ffffff?text=代码审查' },
-                { id: 7, name: '晚间故事朗读', creator: '故事大王Carol', createTime: '2024-05-28 09:00 PM', status: 'live', coverImage: 'https://placehold.co/300x200/f59e0b/ffffff?text=故事朗读' },
-                { id: 8, name: '独立游戏开发日志', creator: '游戏开发者Dave', createTime: '2024-05-28 06:00 PM', status: 'offline', coverImage: 'https://placehold.co/300x200/10b981/ffffff?text=游戏开发' },
-                { id: 9, name: '吉他弹唱教学', creator: '吉他手Eve', createTime: '2024-05-29 11:00 AM', status: 'live', coverImage: 'https://placehold.co/300x200/3b82f6/ffffff?text=吉他教学' },
-                { id: 10, name: '摄影后期技巧', creator: '摄影师Frank', createTime: '2024-05-27 02:00 PM', status: 'offline', coverImage: 'https://placehold.co/300x200/ef4444/ffffff?text=摄影后期' },
-                { id: 11, name: '深度学习研讨会', creator: 'AI研究员Grace', createTime: '2024-05-29 01:00 PM', status: 'live', coverImage: 'https://placehold.co/300x200/6366f1/ffffff?text=AI研讨' },
-                { id: 12, name: '家庭烘焙课堂', creator: '烘焙爱好者Hank', createTime: '2024-05-26 04:00 PM', status: 'offline', coverImage: 'https://placehold.co/300x200/d946ef/ffffff?text=家庭烘焙' },
-                { id: 13, name: '旅游Vlog分享', creator: '旅行家Ivy', createTime: '2024-05-29 03:00 PM', status: 'live', coverImage: 'https://placehold.co/300x200/06b6d4/ffffff?text=旅游Vlog' },
-                { id: 14, name: '播客录制现场', creator: '播客主持人Jack', createTime: '2024-05-25 05:00 PM', status: 'offline', coverImage: 'https://placehold.co/300x200/f97316/ffffff?text=播客录制' }
+                { id: 'room-1', name: '与朋友的游戏时光', creator: '主播张三', createTime: '2024-05-28 10:00 AM', status: 'live', audienceCount: 15 },
+                { id: 'room-2', name: '音乐分享会', creator: '音乐达人李四', createTime: '2024-05-28 09:30 AM', status: 'live', audienceCount: 25 },
+                { id: 'room-3', name: '技术讨论室', creator: '程序员王五', createTime: '2024-05-27 08:00 PM', status: 'offline', audienceCount: 0 },
+                { id: 'room-4', name: '美食制作直播', creator: '厨师赵六', createTime: '2024-05-27 07:00 PM', status: 'offline', audienceCount: 0 },
+                { id: 'room-5', name: '晨间瑜伽练习', creator: '瑜伽导师Alice', createTime: '2024-05-29 07:00 AM', status: 'live', audienceCount: 30 },
+                { id: 'room-6', name: '代码审查与重构', creator: '资深架构师Bob', createTime: '2024-05-29 08:00 AM', status: 'offline', audienceCount: 0 },
+                { id: 'room-7', name: '晚间故事朗读', creator: '故事大王Carol', createTime: '2024-05-28 09:00 PM', status: 'live', audienceCount: 12 },
+                { id: 'room-8', name: '独立游戏开发日志', creator: '游戏开发者Dave', createTime: '2024-05-28 06:00 PM', status: 'offline', audienceCount: 0 },
             ],
             myRooms: [
-                { id: 'user_1', name: '我的第一个直播间', createTime: '2024-05-26 03:00 PM', status: 'offline' },
-                { id: 'user_2', name: '日常生活分享', createTime: '2024-05-25 11:00 AM', status: 'offline' },
-                { id: 'user_3', name: '我的代码学习日记', createTime: '2024-05-24 10:00 AM', status: 'offline' },
-                { id: 'user_4', name: '健身打卡直播间', createTime: '2024-05-23 07:00 PM', status: 'offline' },
-                { id: 'user_5', name: '周末电影讨论', createTime: '2024-05-22 08:30 PM', status: 'offline' },
-                { id: 'user_6', name: '新游戏试玩', createTime: '2024-05-21 09:00 PM', status: 'offline' },
-                { id: 'user_7', name: '语言学习交流', createTime: '2024-05-20 05:00 PM', status: 'offline' }
+                { id: `myroom-${Date.now() + 1000}`, name: '我的第一个直播间', createTime: '2024-05-26 03:00 PM', status: 'offline', ownerName: 'User123' },
+                { id: `myroom-${Date.now() + 2000}`, name: '日常生活分享', createTime: '2024-05-25 11:00 AM', status: 'offline', ownerName: 'User123' },
             ],
+            //TODO: Test Data End
             allRoomsCurrentPage: 1,
             allRoomsItemsPerPage: 8,
             myRoomsCurrentPage: 1,
             myRoomsItemsPerPage: 5,
-            roomIdToDelete: null,
         };
+
+        AppState.myRooms.forEach(myRoom => {
+            if (!AppState.allRooms.find(ar => ar.id === myRoom.id)) {
+                AppState.allRooms.push({
+                    id: myRoom.id,
+                    name: myRoom.name,
+                    creator: myRoom.ownerName,
+                    createTime: myRoom.createTime,
+                    status: myRoom.status,
+                    audienceCount: 0
+                });
+            }
+        });
+
 
         class ThemeManager {
             constructor() {
@@ -310,6 +369,8 @@
             init() {
                 this.applyTheme(AppState.theme);
                 this.bindEvents();
+                const userDisplay = document.getElementById('current-user-display')?.querySelector('span');
+                if (userDisplay) userDisplay.textContent = AppState.currentUser.name;
             }
 
             applyTheme(theme) {
@@ -340,7 +401,8 @@
 
         class RoomManager {
             constructor() {
-                this.roomIdToDelete = null;
+                this.roomIdToTransfer = null;
+                this.roomNameToTransfer = null;
                 this.init();
             }
 
@@ -348,7 +410,7 @@
                 this.renderAllRooms();
                 this.renderMyRooms();
                 this.bindEvents();
-                this.bindDeleteModalEvents();
+                this.bindTransferHostModalEvents();
             }
 
             renderAllRooms() {
@@ -404,8 +466,8 @@
 
                 let paginationHTML = '';
                 paginationHTML += `
-                    <button 
-                        onclick="window.roomManager.changeAllRoomsPage(${currentPage - 1})" 
+                    <button
+                        onclick="window.roomManager.changeAllRoomsPage(${currentPage - 1})"
                         class="pagination-button px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}"
                         ${currentPage === 1 ? 'disabled' : ''}
                         aria-label="Previous page"
@@ -420,8 +482,8 @@
                         paginationHTML += `<span class="pagination-button px-4 py-2 bg-blue-600 text-white rounded-lg font-medium" aria-current="page">${i}</span>`;
                     } else {
                         paginationHTML += `
-                            <button 
-                                onclick="window.roomManager.changeAllRoomsPage(${i})" 
+                            <button
+                                onclick="window.roomManager.changeAllRoomsPage(${i})"
                                 class="pagination-button px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                                 aria-label="Go to page ${i}"
                             >
@@ -432,8 +494,8 @@
                 }
 
                 paginationHTML += `
-                    <button 
-                        onclick="window.roomManager.changeAllRoomsPage(${currentPage + 1})" 
+                    <button
+                        onclick="window.roomManager.changeAllRoomsPage(${currentPage + 1})"
                         class="pagination-button px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}"
                         ${currentPage === totalPages ? 'disabled' : ''}
                         aria-label="Next page"
@@ -461,22 +523,26 @@
                     coverDisplayHTML = `<img src="${liveCoverImageSrc}" alt="${room.name}" class="w-full h-full object-cover">`;
                 } else {
                     coverDisplayHTML = `
-                        <div class="w-full h-full flex items-center justify-center">
+                        <div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-800">
                             <i class="fas fa-video-slash text-gray-500 dark:text-gray-400 text-5xl"></i>
                         </div>
                     `;
                 }
 
+                const audienceDisplay = room.status === 'live' && typeof room.audienceCount === 'number'
+                    ? `<span class="text-xs text-gray-500 dark:text-gray-400"><i class="fas fa-eye mr-1"></i>${room.audienceCount}</span>`
+                    : '';
+
                 return `
-                    <div class="bg-white dark:bg-[#0A0A0A] rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow">
-                        <div class="aspect-video bg-gray-200 dark:bg-gray-800 relative overflow-hidden">
+                    <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md dark:hover:bg-dark-card-hover transition-shadow">
+                        <div class="aspect-video relative overflow-hidden">
                             ${coverDisplayHTML}
                             ${room.status === 'live' ? '<div class="absolute top-2 left-2"><span class="bg-red-600 text-white px-2 py-1 rounded text-xs font-medium">LIVE</span></div>' : ''}
                         </div>
                         <div class="p-4">
                             <h3 class="font-semibold text-gray-900 dark:text-white mb-2 truncate" title="${room.name}">${room.name}</h3>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                                <i class="fas fa-user mr-1"></i>
+                                <i class="fas fa-user-tie mr-1"></i>
                                 ${room.creator}
                             </p>
                             <p class="text-sm text-gray-500 dark:text-gray-500 mb-3">
@@ -485,12 +551,20 @@
                             </p>
                             <div class="flex justify-between items-center">
                                 ${statusBadge}
-                                ${room.status === 'live' ? '<button class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">进入房间</button>' : ''}
+                                ${audienceDisplay}
                             </div>
+                             ${room.status === 'live' ? `<button onclick="window.roomManager.joinLiveRoom('${room.id}')" class="mt-3 w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">进入房间</button>` : ''}
                         </div>
                     </div>
                 `;
             }
+
+            joinLiveRoom(roomId) {
+                //TODO: Implement actual room joining logic
+                this.showNotification(`尝试进入房间 ${roomId}... (功能待实现)`, 'info');
+                window.location.href = `/${roomId}`;
+            }
+
 
             renderMyRooms() {
                 const tbody = document.getElementById('my-rooms-tbody');
@@ -498,17 +572,20 @@
 
                 if (!tbody || !emptyState) return;
 
-                if (AppState.myRooms.length === 0) {
+                const currentUserRooms = AppState.myRooms.filter(room => room.ownerName === AppState.currentUser.name);
+
+
+                if (currentUserRooms.length === 0) {
                     tbody.innerHTML = '';
                     emptyState.classList.remove('hidden');
                 } else {
                     emptyState.classList.add('hidden');
                     const startIndex = (AppState.myRoomsCurrentPage - 1) * AppState.myRoomsItemsPerPage;
                     const endIndex = startIndex + AppState.myRoomsItemsPerPage;
-                    const paginatedMyRooms = AppState.myRooms.slice(startIndex, endIndex);
+                    const paginatedMyRooms = currentUserRooms.slice(startIndex, endIndex);
                     tbody.innerHTML = paginatedMyRooms.map(room => this.createMyRoomRow(room)).join('');
                 }
-                this.renderMyRoomsPagination(AppState.myRooms.length);
+                this.renderMyRoomsPagination(currentUserRooms.length);
             }
 
             renderMyRoomsPagination(totalItems) {
@@ -526,8 +603,8 @@
 
                 let paginationHTML = '';
                 paginationHTML += `
-                    <button 
-                        onclick="window.roomManager.changeMyRoomsPage(${currentPage - 1})" 
+                    <button
+                        onclick="window.roomManager.changeMyRoomsPage(${currentPage - 1})"
                         class="pagination-button px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}"
                         ${currentPage === 1 ? 'disabled' : ''}
                         aria-label="Previous page for my rooms"
@@ -542,8 +619,8 @@
                         paginationHTML += `<span class="pagination-button px-4 py-2 bg-blue-600 text-white rounded-lg font-medium" aria-current="page">${i}</span>`;
                     } else {
                         paginationHTML += `
-                            <button 
-                                onclick="window.roomManager.changeMyRoomsPage(${i})" 
+                            <button
+                                onclick="window.roomManager.changeMyRoomsPage(${i})"
                                 class="pagination-button px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
                                 aria-label="Go to page ${i} of my rooms"
                             >
@@ -554,8 +631,8 @@
                 }
 
                 paginationHTML += `
-                    <button 
-                        onclick="window.roomManager.changeMyRoomsPage(${currentPage + 1})" 
+                    <button
+                        onclick="window.roomManager.changeMyRoomsPage(${currentPage + 1})"
                         class="pagination-button px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}"
                         ${currentPage === totalPages ? 'disabled' : ''}
                         aria-label="Next page for my rooms"
@@ -589,14 +666,14 @@
                             ${statusBadge}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div class="flex space-x-2">
+                            <div class="flex space-x-2 flex-wrap gap-2">
                                 <button onclick="window.roomManager.copyShareLink('${room.id}', this)" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" title="Copy share link">
-                                    <i class="fas fa-copy mr-1"></i>
-                                    复制链接
+                                    <i class="fas fa-share-alt mr-1"></i>
+                                    分享链接
                                 </button>
-                                <button onclick="window.roomManager.showDeleteConfirmation('${room.id}', '${room.name.replace(/'/g, "\\'")}')" class="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300" title="Delete room">
-                                    <i class="fas fa-trash mr-1"></i>
-                                    删除
+                                <button onclick="window.roomManager.showTransferHostModal('${room.id}', '${room.name.replace(/'/g, "\\'")}')" class="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300" title="Transfer host">
+                                    <i class="fas fa-exchange-alt mr-1"></i>
+                                    转移所有权
                                 </button>
                             </div>
                         </td>
@@ -610,51 +687,111 @@
                     return;
                 }
 
-                const newRoom = {
-                    id: 'user_' + Date.now(),
-                    name: roomName.trim(),
-                    createTime: new Date().toLocaleString('zh-CN', {
-                        year: 'numeric', month: '2-digit', day: '2-digit',
-                        hour: '2-digit', minute: '2-digit', hour12: true
-                    }).replace(/\//g, '-'),
-                    status: 'offline'
-                };
+                const newRoomId = `room-${Date.now()}`;
+                const currentTime = new Date().toLocaleString('zh-CN', {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', hour12: true
+                }).replace(/\//g, '-');
 
-                AppState.myRooms.unshift(newRoom);
+                const myRoomEntry = {
+                    id: newRoomId,
+                    name: roomName.trim(),
+                    createTime: currentTime,
+                    status: 'offline',
+                    ownerName: AppState.currentUser.name
+                };
+                AppState.myRooms.unshift(myRoomEntry);
+                //TODO: Backend API call to create room
+
+                const allRoomEntry = {
+                    id: newRoomId,
+                    name: roomName.trim(),
+                    creator: AppState.currentUser.name,
+                    createTime: currentTime,
+                    status: 'offline',
+                    audienceCount: 0
+                };
+                AppState.allRooms.unshift(allRoomEntry);
+
                 AppState.myRoomsCurrentPage = 1;
+                AppState.allRoomsCurrentPage = 1;
                 this.renderMyRooms();
+                this.renderAllRooms();
                 this.showNotification('房间创建成功！', 'success');
             }
 
-            showDeleteConfirmation(roomId, roomName) {
-                this.roomIdToDelete = roomId;
-                const modal = document.getElementById('delete-confirm-modal');
-                const messageEl = document.getElementById('delete-confirm-message');
-                if (modal && messageEl) {
-                    messageEl.textContent = `您确定要删除房间 "${roomName}" 吗？此操作无法撤销。`;
+
+            showTransferHostModal(roomId, roomName) {
+                this.roomIdToTransfer = roomId;
+                this.roomNameToTransfer = roomName;
+                const modal = document.getElementById('transfer-host-modal');
+                const roomNameInfoEl = document.getElementById('transfer-room-name-info');
+                const newHostNameInput = document.getElementById('new-host-name-input');
+
+                if (modal && roomNameInfoEl && newHostNameInput) {
+                    roomNameInfoEl.textContent = `您正在转移房间 "${roomName}" 的所有权。`;
+                    newHostNameInput.value = '';
                     modal.classList.remove('hidden');
+                    newHostNameInput.focus();
                 }
             }
 
-            _performDeleteRoom() {
-                if (!this.roomIdToDelete) return;
+            _handleConfirmTransfer() {
+                const newHostNameInput = document.getElementById('new-host-name-input');
+                if (!newHostNameInput || !this.roomIdToTransfer) return;
 
-                AppState.myRooms = AppState.myRooms.filter(room => room.id !== this.roomIdToDelete);
-
-                const totalItems = AppState.myRooms.length;
-                const itemsPerPage = AppState.myRoomsItemsPerPage;
-                const currentPage = AppState.myRoomsCurrentPage;
-                const newTotalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / itemsPerPage);
-
-                if (currentPage > newTotalPages && newTotalPages > 0) {
-                    AppState.myRoomsCurrentPage = newTotalPages;
-                } else if (totalItems === 0) {
-                    AppState.myRoomsCurrentPage = 1;
+                const newHostName = newHostNameInput.value.trim();
+                if (newHostName) {
+                    this.transferHost(this.roomIdToTransfer, newHostName);
+                    this.closeTransferHostModal();
+                } else {
+                    this.showNotification('请输入有效的主持人名称', 'error');
+                    newHostNameInput.focus();
                 }
+            }
 
-                this.renderMyRooms();
-                this.showNotification('房间已删除', 'info');
-                this.roomIdToDelete = null;
+            closeTransferHostModal() {
+                const modal = document.getElementById('transfer-host-modal');
+                if (modal) {
+                    modal.classList.add('hidden');
+                }
+                this.roomIdToTransfer = null;
+                this.roomNameToTransfer = null;
+            }
+
+
+            transferHost(roomId, newHostName) {
+                const myRoomIndex = AppState.myRooms.findIndex(r => r.id === roomId && r.ownerName === AppState.currentUser.name);
+                const allRoom = AppState.allRooms.find(r => r.id === roomId);
+
+                if (myRoomIndex !== -1 && allRoom) {
+                    const roomName = AppState.myRooms[myRoomIndex].name;
+                    AppState.myRooms.splice(myRoomIndex, 1);
+                    allRoom.creator = newHostName;
+                    allRoom.status = 'offline';
+                    allRoom.audienceCount = 0;
+
+                    //TODO: Backend API call to transfer ownership and update host
+                    this.showNotification(`房间 "${roomName}" 已转移给 ${newHostName}`, 'success');
+                    this.renderMyRooms();
+                    this.renderAllRooms();
+                } else {
+                    this.showNotification('转移所有权失败，未找到房间或您不是所有者', 'error');
+                }
+            }
+
+
+            joinRoomByCode(shareCode) {
+                if (!shareCode.trim()) {
+                    this.showNotification('请输入分享代码', 'error');
+                    return;
+                }
+                //TODO: Backend API call to validate shareCode and get room details
+                this.showNotification('正在加入房间...', 'info');
+                setTimeout(() => {
+                    const cleanCode = shareCode.trim();
+                    window.location.href = `/${cleanCode}`;
+                }, 500);
             }
 
 
@@ -737,7 +874,7 @@
                 });
 
                 setTimeout(() => {
-                    notification.style.transform = 'translateX(100%)';
+                    notification.style.transform = 'translateX(calc(100% + 1rem))';
                     setTimeout(() => {
                         if (document.body.contains(notification)) {
                             document.body.removeChild(notification);
@@ -834,43 +971,107 @@
                     });
                 }
 
+                const joinModal = document.getElementById('join-room-modal');
+                const joinBtn = document.getElementById('join-room-btn');
+                const closeJoinBtn = document.getElementById('close-join-modal');
+                const cancelJoinBtn = document.getElementById('cancel-join-room');
+                const confirmJoinBtn = document.getElementById('confirm-join-room');
+                const shareCodeInput = document.getElementById('share-code-input');
+
+                const openJoinModalAction = () => {
+                    if (joinModal && shareCodeInput) {
+                        joinModal.classList.remove('hidden');
+                        shareCodeInput.value = '';
+                        shareCodeInput.focus();
+                    }
+                };
+
+                if (joinBtn) {
+                    joinBtn.addEventListener('click', openJoinModalAction);
+                }
+
+                const closeJoinModalAction = () => {
+                    if (joinModal && shareCodeInput) {
+                        joinModal.classList.add('hidden');
+                        shareCodeInput.value = '';
+                    }
+                };
+
+                if (closeJoinBtn) {
+                    closeJoinBtn.addEventListener('click', closeJoinModalAction);
+                }
+
+                if (cancelJoinBtn) {
+                    cancelJoinBtn.addEventListener('click', closeJoinModalAction);
+                }
+
+                if (joinModal) {
+                    joinModal.addEventListener('click', (e) => {
+                        if (e.target === joinModal) {
+                            closeJoinModalAction();
+                        }
+                    });
+                }
+
+                if (confirmJoinBtn && shareCodeInput) {
+                    confirmJoinBtn.addEventListener('click', () => {
+                        const shareCode = shareCodeInput.value.trim();
+                        if (shareCode) {
+                            this.joinRoomByCode(shareCode);
+                        } else {
+                            this.showNotification('请输入分享代码', 'error');
+                            shareCodeInput.focus();
+                        }
+                    });
+                }
+
+                if (shareCodeInput) {
+                    shareCodeInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            const shareCode = shareCodeInput.value.trim();
+                            if (shareCode) {
+                                this.joinRoomByCode(shareCode);
+                            } else {
+                                this.showNotification('请输入分享代码', 'error');
+                                shareCodeInput.focus();
+                            }
+                        }
+                    });
+                }
+
                 document.querySelectorAll('.create-room-trigger').forEach(trigger => {
                     trigger.addEventListener('click', openModalAction);
                 });
             }
 
-            bindDeleteModalEvents() {
-                const deleteModal = document.getElementById('delete-confirm-modal');
-                const closeDeleteBtn = document.getElementById('close-delete-modal');
-                const cancelDeleteBtn = document.getElementById('cancel-delete-room');
-                const confirmDeleteBtn = document.getElementById('confirm-delete-room');
+            bindTransferHostModalEvents() {
+                const transferModal = document.getElementById('transfer-host-modal');
+                const closeTransferBtn = document.getElementById('close-transfer-modal');
+                const cancelTransferBtn = document.getElementById('cancel-transfer-host');
+                const confirmTransferBtn = document.getElementById('confirm-transfer-host');
+                const newHostNameInput = document.getElementById('new-host-name-input');
 
-                const closeDeleteModalAction = () => {
-                    if (deleteModal) {
-                        deleteModal.classList.add('hidden');
-                        this.roomIdToDelete = null;
-                    }
-                };
-
-                if (closeDeleteBtn) {
-                    closeDeleteBtn.addEventListener('click', closeDeleteModalAction);
+                if (closeTransferBtn) {
+                    closeTransferBtn.addEventListener('click', () => this.closeTransferHostModal());
                 }
-                if (cancelDeleteBtn) {
-                    cancelDeleteBtn.addEventListener('click', closeDeleteModalAction);
+                if (cancelTransferBtn) {
+                    cancelTransferBtn.addEventListener('click', () => this.closeTransferHostModal());
                 }
-                if (deleteModal) {
-                    deleteModal.addEventListener('click', (e) => {
-                        if (e.target === deleteModal) {
-                            closeDeleteModalAction();
+                if (transferModal) {
+                    transferModal.addEventListener('click', (e) => {
+                        if (e.target === transferModal) {
+                            this.closeTransferHostModal();
                         }
                     });
                 }
-
-
-                if (confirmDeleteBtn) {
-                    confirmDeleteBtn.addEventListener('click', () => {
-                        this._performDeleteRoom();
-                        closeDeleteModalAction();
+                if (confirmTransferBtn) {
+                    confirmTransferBtn.addEventListener('click', () => this._handleConfirmTransfer());
+                }
+                if (newHostNameInput) {
+                    newHostNameInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            this._handleConfirmTransfer();
+                        }
                     });
                 }
             }
