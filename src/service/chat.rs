@@ -90,12 +90,12 @@ pub async fn handle_websocket(
     Ok(())
 }
 
-use super::room::{Room};
+// use super::room::{Room};
 
-pub async fn create_room(repo: Arc<dyn Repository>, user_id: i32) -> Result<Room, ChatError> {
-    let user = user::get_user_by_id(repo, user_id).await?;
-    Ok(room::create_host_by(user.id))
-}
+// pub async fn create_room(repo: Arc<dyn Repository>, user_id: i32) -> Result<Room, ChatError> {
+//     let user = user::get_user_by_id(repo, user_id).await?;
+//     Ok(room::create_host_by(user.id))
+// }
 
 pub async fn send_message(repo: Arc<dyn Repository>, user_id: i32, room_link: &str, content: String) -> Result<(), ChatError> {
     let user = user::get_user_by_id(repo, user_id).await?;
