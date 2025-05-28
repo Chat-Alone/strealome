@@ -16,7 +16,10 @@ async fn get(jwt: Jwt, State(state): State<AppState>) -> Response {
     let user = user.unwrap();
 
     let gateway_token = Jwt::chat_ws(user.id, state.jwt_exp_duration);
-    let gateway_token = gateway_token.encode(&state.jwt_secret).unwrap_or("wtf?".to_string());
+    let gateway_token = match gateway_token.encode(&state.jwt_secret) {
+        Ok(token) => token,
+        Err(_) => return Response::error("Failed to encode gateway token"),
+    };
     Response::success(Some(GetResponse { gateway_token }))
 }
 
