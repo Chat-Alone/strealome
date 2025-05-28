@@ -1,19 +1,13 @@
-mod index;
-mod room;
 mod chat;
-mod user;
 
 use axum::Router;
-use super::{AppState, Error, Jwt, Response};
+use super::{AppState, Jwt, Response, Error};
 
 pub fn route(path: &str, app_state: AppState) -> Router {
     let inner = Router::new()
-        .merge(index::route("/"))
-        .merge(chat::route("/chat"))
-        .merge(user::route("/user"))
-        .merge(room::route("/room"))
+        .merge(chat::route("/"))
         .with_state(app_state);
-    
+
     if path == "/" {
         inner
     } else {

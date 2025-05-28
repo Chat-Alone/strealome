@@ -2,10 +2,7 @@ use std::sync::Arc;
 use serde_json::{json, Value};
 use thiserror::Error as ThisError;
 
-use crate::REPO;
-use crate::controller::Response;
-use crate::model::UserModel;
-use crate::repository::{CRUD, Repository, UserRepo};
+use super::{Response, UserModel, CRUD, Repository, UserRepo};
 
 #[derive(ThisError, Debug)]
 pub enum UserError {
@@ -149,7 +146,7 @@ pub async fn update_profile(repo: Arc<dyn Repository>, user_id: i32, param: Upda
             return Err(UserError::InvalidUsername);
         };
     }
-    
+
     let mut user = repo.find_by_id(user_id).await.ok_or(UserError::UserNotFound)?;
     
     if let Some(old_password) = &param.old_password {

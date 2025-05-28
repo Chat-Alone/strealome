@@ -7,15 +7,12 @@ mod signal;
 use std::sync::{Arc};
 use chrono::Duration;
 use tokio::task::JoinHandle;
-use repository::{DuckDBRepo, RepoConfig };
+use repository::{ Repo, RepoConfig };
 use crate::repository::Repository;
 
-const USE_COOKIE: bool = true;
-
-use repository::DUCKDB_REPO as REPO;
 
 static REPO_CFG: RepoConfig = RepoConfig {
-    url: Some("res/duck.db"),
+    url: Some("res/sqlite.db"),
     schema: Some("strealome"),
     username: None,
     password: None,
@@ -29,11 +26,12 @@ async fn ctrl_c_task() -> JoinHandle<()> {
 }
 
 #[tokio::main]
-async fn main() -> () {
-    let repo = DuckDBRepo::conn().await;
+async fn main() {
+    let repo = Repo::conn().await;
+
     let mut serve_task = controller::listen(
-        "127.0.0.1:3000", 
-        Arc::new(repo), 
+        "127.0.0.1:3000",
+        Arc::new(repo),
         "secret".to_string(),
         Duration::minutes(30)
     ).await;

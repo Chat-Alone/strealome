@@ -3,11 +3,18 @@ name = "strealome"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["repo_sqlite"]
+repo_duckdb = ["duckdb"]
+repo_sqlite = ["rusqlite"]
+
 [dependencies]
 axum = { version = "0.8.4", features = ["ws"] }
 axum-extra = { version = "0.10.1", features = ["typed-header"] }
 jsonwebtoken = "9.3.1"
-duckdb = { version = "1.2.2", features = ["chrono", "bundled"]}
+
+duckdb = { version = "1.2.2", features = ["chrono", "bundled"], optional = true }
+rusqlite = { version = "0.36.0", features = ["chrono"], optional = true }
 
 futures = "0.3.31"
 tokio = { version = "1.45.0", features = ["full"] }
@@ -18,3 +25,5 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 thiserror = "2.0.12"
 bcrypt = "0.17.0"
+dashmap = "7.0.0-rc2"
+rand = "0.9.1"

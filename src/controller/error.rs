@@ -40,7 +40,7 @@ impl From<Error> for Response {
     fn from(e: Error) -> Self {
         match e {
             Error::Genetic(payload) => Response::fail(StatusCode::OK, payload),
-            _ => Response::fail(e.status_code(), None),
+            _ => Response::fail::<()>(e.status_code(), None),
         }
     }
 }
