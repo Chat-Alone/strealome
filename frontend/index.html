@@ -441,7 +441,7 @@
                 if (logoutBtn) {
                     logoutBtn.addEventListener('click', async () => {
                         try {
-                            await fetchAPI('/logout', { method: 'POST' });
+                            await fetchAPI('/user/logout', { method: 'POST' });
                             window.roomManager?.showNotification('已成功登出', 'success');
                             window.location.href = '/login';
                         } catch (error) {
@@ -474,7 +474,7 @@
 
             async fetchMyRooms() {
                 try {
-                    const data = await fetchAPI('/chat/room');
+                    const data = await fetchAPI('/room/my');
                     AppState.myRooms = data.related_rooms.map(room => ({
                         id: room.share_link,
                         name: room.name,
@@ -498,7 +498,7 @@
                     // Placeholder: Simulating fetching "all" rooms.
                     // In a real scenario, this would be a different endpoint like GET /chat/room/all
                     // and its response structure might differ (e.g. include 'creator', 'status', 'audienceCount').
-                    const data = await fetchAPI('/chat/room'); // Re-using related_rooms for demo
+                    const data = await fetchAPI('/room/my'); // Re-using related_rooms for demo
                     AppState.allRooms = data.related_rooms.map(apiRoom => ({
                         id: apiRoom.share_link,
                         name: apiRoom.name,
@@ -797,7 +797,7 @@
 
                 try {
                     // API spec for POST /chat/room request body is not defined. Assuming it takes { name: "roomName" }.
-                    const responsePayload = await fetchAPI('/chat/room', {
+                    const responsePayload = await fetchAPI('/room/create', {
                         method: 'POST',
                         body: JSON.stringify({ name: roomName.trim() })
                     });
