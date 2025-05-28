@@ -448,7 +448,7 @@
                 $('#registerSpinner').removeClass('hidden');
                 $('#registerBtn').prop('disabled', true).addClass('opacity-75');
 
-                fetch('/register', {
+                fetch('/user/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

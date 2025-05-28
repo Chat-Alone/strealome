@@ -381,7 +381,7 @@
                 $('#loginSpinner').removeClass('hidden');
                 $('#loginBtn').prop('disabled', true).addClass('opacity-75');
 
-                fetch('/login', {
+                fetch('/user/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

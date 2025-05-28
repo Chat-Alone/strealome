@@ -1271,7 +1271,7 @@
             }
 
             $('#logoutBtn').on('click', function () {
-                fetch('/logout', { method: 'POST' })
+                fetch('/user/logout', { method: 'POST' })
                     .then(_ => {
                         window.localStorage.removeItem('authToken');
                         window.location.href = '/';
