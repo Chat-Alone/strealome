@@ -23,7 +23,7 @@ async fn post(
     let user = user.unwrap();
     
     let PostRequest { name: room_name } = req;
-    let room = RoomResp::from(room::create_host_by(user.id, room_name), user.id);
+    let room = RoomResp::from(room::create_host_by(user.id, user.name, room_name), user.id);
     Response::success(Some(PostResponse { room }))
 }
 

@@ -15,6 +15,7 @@ thread_local! {
 
 use thiserror::Error as ThisError;
 use crate::controller::Response;
+use crate::service::user;
 
 #[derive(Debug, ThisError)]
 pub enum RoomError {
@@ -37,15 +38,18 @@ pub struct Room {
     link:       Arc<String>, // pk
 
     host_id:    i32,
+    host_name:  Arc<RwLock<String>>,
     name:       Arc<RwLock<String>>,
     users:      Arc<DashMap<i32, mpsc::Sender<Arc<ChatMessage>>>>, // user_id -> user_name
     created_at: DateTime<Utc>,
 }
 
 impl Room {
-    fn new(host_id: i32, name: String, link: String) -> Self {
+    fn new(host_id: i32, host_name: String, name: String, link: String) -> Self {
         Self {
             host_id,
+            host_name: Arc::new(RwLock::new(host_name)),
+            
             link: Arc::new(link.clone()),
             name: Arc::new(RwLock::new(name)),
             users: Arc::new(DashMap::new()),
@@ -53,8 +57,8 @@ impl Room {
         }
     }
 
-    pub fn contains_user(&self, user_id: i32) -> bool {
-        self.users.contains_key(&user_id)
+    pub fn contains_user(&self, user_id: i32) -> Result<(), RoomError> {
+        self.users.contains_key(&user_id).then_some(()).ok_or(RoomError::UserNotFound)
     }
 
     pub fn share_link(&self) -> String {
@@ -65,6 +69,10 @@ impl Room {
         self.created_at
     }
     
+    pub fn user_len(&self) -> usize {
+        self.users.len()
+    }
+    
     pub fn host_id(&self) -> i32 {
         self.host_id
     }
@@ -73,12 +81,16 @@ impl Room {
         self.name.read().unwrap().clone()
     }
     
+    pub fn host_name(&self) -> String {
+        self.host_name.read().unwrap().clone()
+    }
+     
     pub async fn join(&self, user_id: i32, tx: mpsc::Sender<Arc<ChatMessage>>) {
         self.users.insert(user_id, tx);
     }
 
     pub async fn sync_message(&self, author_id: i32, content: ChatMessageContent) -> Result<(), RoomError> {
-        if !self.contains_user(author_id) { return Err(RoomError::UserNotFound) }
+        self.contains_user(author_id)?;
         let msg = Arc::new(ChatMessage::new(author_id, self.share_link(), content));
         for item in self.users.iter() {
             if item.key() == &author_id { continue }
@@ -86,6 +98,12 @@ impl Room {
         }
         
         Ok(())
+    }
+}
+
+impl PartialEq for Room {
+    fn eq(&self, other: &Self) -> bool {
+        self.link == other.link
     }
 }
 
@@ -103,7 +121,7 @@ impl Rooms {
         }
     }
 
-    fn create(&self, host_id: i32, room_name: String) -> Room {
+    fn create(&self, host_id: i32, host_name: String, room_name: String) -> Room {
 
         let mut res = self.hosts.entry(host_id).or_insert(vec![]);
         let new_link = loop {
@@ -116,7 +134,7 @@ impl Rooms {
         res.push(new_link.clone());
         drop(res);
         
-        let new_room = Room::new(host_id, room_name, new_link.clone());
+        let new_room = Room::new(host_id, host_name, room_name, new_link.clone());
         self.rooms.insert(new_link, new_room.clone());
         
         println!("CurrRooms: {:?}", self.rooms);
@@ -139,7 +157,7 @@ impl Rooms {
     fn related_rooms(&self, user_id: i32) -> Vec<Room> {
         let mut ret = vec![];
         for item in self.rooms.iter() {
-            if item.value().contains_user(user_id) {
+            if let Ok(_) = item.value().contains_user(user_id) {
                 ret.push(item.value().clone());
             }
         }
@@ -166,8 +184,8 @@ pub fn related_to(user_id: i32) -> Vec<Room> {
     ret
 }
 
-pub fn create_host_by(host_id: i32, name: String) -> Room {
-    rooms().create(host_id, name)
+pub fn create_host_by(host_id: i32, host_name: String, name: String) -> Room {
+    rooms().create(host_id, host_name, name)
 }
 
 fn gen_rand_string(len: usize) -> String {
