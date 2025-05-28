@@ -109,7 +109,6 @@ impl FromRequestParts<AppState> for Jwt {
     type Rejection = Response;
 
     fn from_request_parts(req: &mut Parts, state: &AppState) -> impl Future<Output=Result<Self, Self::Rejection>> + Send {
-        println!("Jwt::from_request_parts, state.jwt_auth_method = {:?}", state.jwt_auth_method);
         async move {
             match state.jwt_auth_method {
                 JwtAuthMethod::Cookie => {

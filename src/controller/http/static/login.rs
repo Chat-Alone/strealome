@@ -11,7 +11,7 @@ use super::{AppState, Jwt};
 async fn get(jwt: Option<Jwt>, State(state): State<AppState>) -> AxumResponse {
     if let Some(jwt) = jwt {
         let user = state.repository.find_by_id(jwt.sub).await;
-        if let Some(user) = user {
+        if user.is_some() {
             let str = unwrap!(read_to_string("frontend/index.html").await);
             return Html(str).into_response();
         }

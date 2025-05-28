@@ -9,7 +9,9 @@ pub async fn post(State(state): State<AppState>) -> AxumResponse {
     if state.jwt_auth_method.is_cookie() {
         let mut res = Response::success::<()>(None).into_response();
         res.headers_mut()
-            .insert(SET_COOKIE, HeaderValue::from_str("token=").unwrap());
+            .insert(SET_COOKIE, HeaderValue::from_str(
+                "token=nothing; Max-Age={}; Path=/; HttpOnly; Secure; SameSite=Strict"
+            ).unwrap());
         return res
     }
     
