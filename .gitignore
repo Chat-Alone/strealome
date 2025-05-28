@@ -19,3 +19,6 @@ target/
 # Added by cargo
 
 /target
+
+# For Windows Platform
+sqlite3.lib

@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use crate::service::room::Room;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct RoomResp {
     name:       String,
     hosting:    bool,
@@ -13,7 +13,7 @@ pub struct RoomResp {
 impl RoomResp {
     pub fn from(room: Room, host_id: i32) -> Self {
         Self {
-            name:       room.share_link(),
+            name:       room.name(),
             share_link: room.share_link(),
             created_at: room.created_at(),
             hosting:    room.host_id() == host_id,

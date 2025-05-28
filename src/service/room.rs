@@ -1,10 +1,10 @@
 use std::cell::RefCell;
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, RwLock};
 use chrono::{DateTime, Utc};
 use rand::RngCore;
-use tokio::sync::mpsc;
-use dashmap::{DashMap, DashSet};
-use serde::{Deserialize, Serialize};
+use tokio::sync::{mpsc};
+use dashmap::{DashMap};
+
 use crate::model::{ChatMessage, ChatMessageContent};
 
 const ROOM_SHARE_LINK_LEN: usize = 8;
@@ -37,15 +37,17 @@ pub struct Room {
     link:       Arc<String>, // pk
 
     host_id:    i32,
+    name:       Arc<RwLock<String>>,
     users:      Arc<DashMap<i32, mpsc::Sender<Arc<ChatMessage>>>>, // user_id -> user_name
     created_at: DateTime<Utc>,
 }
 
 impl Room {
-    fn new(host_id: i32, link: String) -> Self {
+    fn new(host_id: i32, name: String, link: String) -> Self {
         Self {
             host_id,
-            link: Arc::new(link),
+            link: Arc::new(link.clone()),
+            name: Arc::new(RwLock::new(name)),
             users: Arc::new(DashMap::new()),
             created_at: Utc::now(),
         }
@@ -65,6 +67,10 @@ impl Room {
     
     pub fn host_id(&self) -> i32 {
         self.host_id
+    }
+    
+    pub fn name(&self) -> String {
+        self.name.read().unwrap().clone()
     }
     
     pub async fn join(&self, user_id: i32, tx: mpsc::Sender<Arc<ChatMessage>>) {
@@ -97,7 +103,7 @@ impl Rooms {
         }
     }
 
-    fn create(&self, host_id: i32) -> Room {
+    fn create(&self, host_id: i32, room_name: String) -> Room {
 
         let mut res = self.hosts.entry(host_id).or_insert(vec![]);
         let new_link = loop {
@@ -110,7 +116,7 @@ impl Rooms {
         res.push(new_link.clone());
         drop(res);
         
-        let new_room = Room::new(host_id, new_link.clone());
+        let new_room = Room::new(host_id, room_name, new_link.clone());
         self.rooms.insert(new_link, new_room.clone());
         
         println!("CurrRooms: {:?}", self.rooms);
@@ -160,8 +166,8 @@ pub fn related_to(user_id: i32) -> Vec<Room> {
     ret
 }
 
-pub fn create_host_by(host_id: i32) -> Room {
-    rooms().create(host_id)
+pub fn create_host_by(host_id: i32, name: String) -> Room {
+    rooms().create(host_id, name)
 }
 
 fn gen_rand_string(len: usize) -> String {
