@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stream Alone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                screens: {
+                    'xs': '400px',
+                    'sm': '640px',
+                    'md': '768px',
+                    'lg': '1024px',
+                    'xl': '1280px',
+                    '2xl': '1536px',
+                }
+            }
+        }
+    </script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/lucide-icons@latest/dist/umd/lucide.min.js"></script>
+    <style>
+        :root {
+            --primary-bg: #ffffff;
+            --secondary-bg: #f9fafb;
+            --border-color: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --accent-color: #3b82f6;
+            --icon-color: #374151;
+            --message-bg: #f3f4f6;
+            --hover-bg: #f3f4f6;
+            --focus-ring: #3b82f6;
+            --focus-ring-offset: #ffffff;
+            --focus-shadow: rgba(59, 130, 246, 0.5);
+        }
+
+        .dark {
+            --primary-bg: #111111;
+            --secondary-bg: #1a1a1a;
+            --border-color: #2a2a2a;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --accent-color: #3b82f6;
+            --icon-color: #d1d5db;
+            --message-bg: #1e1e1e;
+            --hover-bg: #262626;
+            --focus-ring: #60a5fa;
+            --focus-ring-offset: #111111;
+            --focus-shadow: rgba(96, 165, 250, 0.5);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-primary);
+            transition: all 0.2s ease;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .font-geist-mono {
+            font-family: 'Space Mono', monospace;
+        }
+
+        .emoji-only {
+            font-size: 2rem;
+            display: inline-block;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+
+        .message-text {
+            word-break: break-word;
+            display: inline-block;
+            max-width: 100%;
+            font-size: 1rem;
+        }
+
+        .message-wrapper {
+            max-height: 200px;
+            overflow-y: auto;
+            transition: max-height 0.3s;
+        }
+
+        .message-wrapper.collapsed {
+            max-height: 80px;
+        }
+
+        .live-controls {
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .stream-container:hover .live-controls,
+        .live-controls:focus-within {
+            opacity: 1;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 80px;
+            height: 4px;
+            background: var(--border-color);
+            outline: none;
+            border-radius: 4px;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        .tab-active {
+            border-bottom: 2px solid var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .message {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tooltip {
+            position: absolute;
+            background: var(--secondary-bg);
+            color: var(--text-primary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            z-index: 10;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-5px);
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s;
+        }
+
+        .tooltip-container:hover .tooltip {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-10px);
+        }
+
+        .stream-container {
+            position: relative;
+            background-color: black;
+            overflow: hidden;
+        }
+
+        .offline-stream.stream-container {
+            background-color: transparent;
+        }
+
+        .stream-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: transparent;
+        }
+
+        .offline-stream .stream-video {
+            opacity: 0;
+        }
+
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast-notification.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .toast-notification .icon {
+            font-size: 18px;
+        }
+
+        .toast-notification .close-btn {
+            margin-left: 10px;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            opacity: 0.7;
+        }
+
+        .toast-notification .close-btn:hover {
+            opacity: 1;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .offline-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 5;
+            color: white;
+            text-align: center;
+            display: none;
+        }
+
+        .offline-overlay.active {
+            display: flex;
+        }
+
+        .modal-animate-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-animate-out {
+            animation: fadeOut 0.2s ease-in forwards;
+        }
+
+        .loading-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            background-color: #111;
+            z-index: 4;
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid #666;
+            width: 24px;
+            height: 24px;
+            margin-bottom: 12px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            to {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+        }
+
+        *:focus {
+            outline: none;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        input[type="range"]:focus,
+        textarea:focus {
+            border-color: var(--focus-ring);
+            box-shadow: 0 0 0 3px var(--focus-shadow);
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        button:focus,
+        .button:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            transition: outline 0.15s ease-in-out;
+        }
+
+        button.rounded-full:focus,
+        .button.rounded-full:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 3px;
+            box-shadow: 0 0 0 1px var(--focus-ring-offset), 0 0 0 4px var(--focus-shadow);
+        }
+
+        .bg-\[var\(--accent-color\)\]:focus,
+        button[type="submit"]:focus {
+            outline: 2px solid var(--focus-ring-offset);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 4px var(--focus-shadow);
+        }
+
+        #logoutBtn.focused::before {
+            display: none;
+        }
+
+        #logoutBtn:focus {
+            outline: none;
+            box-shadow: 0 0 0 -100px var(--focus-ring);
+            color: var(--text-primary);
+            border-color: var(--focus-ring);
+        }
+
+        #settingsBtn:focus,
+        #themeToggle:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 3px;
+            background-color: var(--hover-bg);
+            box-shadow: 0 0 0 1px var(--focus-ring-offset), 0 0 0 4px var(--focus-shadow);
+            transform: scale(1.05);
+            transition: all 0.15s ease-in-out;
+        }
+
+        #chatTab:focus,
+        #viewersTab:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: -2px;
+            background-color: var(--hover-bg);
+            transition: all 0.15s ease-in-out;
+        }
+
+        .live-controls button:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.8);
+            outline-offset: 2px;
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+            transition: all 0.15s ease-in-out;
+        }
+
+        .volume-slider:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.8);
+            outline-offset: 3px;
+        }
+
+        .volume-slider:focus::-webkit-slider-thumb {
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+            transform: scale(1.2);
+        }
+
+        .volume-slider:focus::-moz-range-thumb {
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+            transform: scale(1.2);
+        }
+
+        #settingsModal button:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 3px var(--focus-shadow);
+        }
+
+        #closeSettingsBtn:focus,
+        .close-btn:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            background-color: var(--hover-bg);
+            color: var(--text-primary);
+            transform: scale(1.1);
+            transition: all 0.15s ease-in-out;
+        }
+
+        #closeSettingsBtn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease-in-out;
+        }
+
+        #closeSettingsBtn:hover {
+            background-color: var(--hover-bg);
+            transform: scale(1.05);
+        }
+
+        #closeSettingsBtn:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            background-color: var(--hover-bg);
+            transform: scale(1.1);
+            box-shadow: 0 0 0 3px var(--focus-shadow);
+        }
+
+        .toast-notification .close-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .toast-notification .close-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .toast-notification .close-btn:focus {
+            outline: 2px solid rgba(255, 255, 255, 0.9);
+            outline-offset: 2px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            transform: scale(1.1);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+        }
+
+        #streamVideo:focus {
+            outline: 3px solid var(--focus-ring);
+            outline-offset: 4px;
+            box-shadow: 0 0 0 6px var(--focus-shadow);
+        }
+
+        .keyboard-hint {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 250px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            pointer-events: none;
+        }
+
+        .keyboard-hint.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .keyboard-hint h4 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .keyboard-hint ul {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .keyboard-hint li {
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: var(--accent-color);
+            color: white;
+            padding: 8px;
+            text-decoration: none;
+            border-radius: 4px;
+            z-index: 100;
+            font-size: 14px;
+            transition: top 0.3s;
+        }
+
+        .skip-link:focus {
+            top: 6px;
+            outline: 2px solid var(--focus-ring-offset);
+            outline-offset: 2px;
+        }
+
+        #sendMessageBtn:focus {
+            outline: 2px solid var(--focus-ring-offset);
+            outline-offset: 2px;
+            box-shadow: 0 0 0 4px var(--focus-shadow);
+            transform: scale(1.05);
+            transition: all 0.15s ease-in-out;
+        }
+
+        a:focus,
+        [role="button"]:focus,
+        [tabindex]:focus {
+            outline: 2px solid var(--focus-ring);
+            outline-offset: 2px;
+            transition: outline 0.15s ease-in-out;
+        }
+
+        .no-focus:focus {
+            outline: none;
+            box-shadow: none;
+        }
+
+        .keyboard-navigation button:focus,
+        .keyboard-navigation input:focus,
+        .keyboard-navigation select:focus {
+            z-index: 10;
+            position: relative;
+        }
+
+        .focused {
+            position: relative;
+        }
+
+        .focused::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 2px solid var(--focus-ring);
+            border-radius: inherit;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.6;
+        }
+
+        #logoutBtn.focused::before {
+            border-radius: 4px;
+        }
+
+        button.rounded-full.focused::before {
+            border-radius: 50%;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+        }
+
+        @media (prefers-contrast: high) {
+            :root {
+                --focus-ring: #0066cc;
+                --focus-shadow: rgba(0, 102, 204, 0.7);
+            }
+
+            .dark {
+                --focus-ring: #66b3ff;
+                --focus-shadow: rgba(102, 179, 255, 0.7);
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *:focus {
+                transition: none;
+            }
+
+            button:focus,
+            input:focus {
+                transition: none;
+            }
+        }
+    </style>
+</head>
+
+<body class="flex flex-col h-screen">
+    <!-- 跳过导航链接 -->
+    <a href="#main-content" class="skip-link">跳过导航</a>
+
+    <div id="muteToast" class="toast-notification">
+        <i class="fas fa-volume-mute icon"></i>
+        <span>直播已静音，点击左下角音量图标取消静音</span>
+        <button class="close-btn" tabindex="0">&times;</button>
+    </div>
+
+    <div id="settingsModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+        <div class="fixed inset-0 bg-black opacity-50" id="settingsOverlay"></div>
+        <div class="bg-[var(--primary-bg)] rounded-lg shadow-lg p-6 w-full max-w-md z-10 relative">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">用户设置</h3>
+                <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xl" tabindex="0"
+                    id="closeSettingsBtn">
+                    &times;
+                </button>
+            </div>
+
+            <form id="settingsForm" class="space-y-4">
+                <div class="space-y-2">
+                    <h4 class="font-medium">修改用户名</h4>
+                    <div class="space-y-2">
+                        <input type="text" id="newUsername" placeholder="新用户名" tabindex="0"
+                            class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
+                        <p id="usernameError" class="text-red-500 text-xs hidden">用户名必须是4-24个字节</p>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <h4 class="font-medium">修改密码</h4>
+                    <div class="space-y-2">
+                        <input type="password" id="newPassword" placeholder="新密码" tabindex="0"
+                            class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
+                        <input type="password" id="confirmPassword" placeholder="确认新密码" tabindex="0"
+                            class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
+                        <div class="space-y-1">
+                            <p id="passwordLengthError" class="text-red-500 text-xs hidden">长度必须在8~32位之间</p>
+                            <p id="passwordCharError" class="text-red-500 text-xs hidden">只能包含ASCII字母和数字</p>
+                            <p id="passwordComboError" class="text-red-500 text-xs hidden">必须同时包含至少一个字母和一个数字</p>
+                        </div>
+                        <p id="confirmError" class="text-red-500 text-xs hidden">两次输入的密码不一致</p>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-solid border-[var(--border-color)]">
+                    <p class="text-sm text-[var(--text-secondary)] mb-2">请输入当前密码以确认更改</p>
+                    <input type="password" id="currentPassword" placeholder="当前密码" required tabindex="0"
+                        class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
+                    <p id="currentPasswordError" class="text-red-500 text-xs hidden">请输入当前密码</p>
+                </div>
+
+                <div class="flex justify-end pt-4">
+                    <button type="button" id="cancelSettingsBtn" tabindex="0"
+                        class="mr-2 px-4 py-2 border border-solid border-[var(--border-color)] rounded text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]">
+                        取消
+                    </button>
+                    <button type="submit" id="saveSettingsBtn" tabindex="0"
+                        class="px-4 py-2 bg-[var(--accent-color)] text-white rounded hover:bg-blue-600">
+                        保存更改
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="successToast" class="toast-notification">
+        <i class="fas fa-check-circle icon text-green-500"></i>
+        <span id="successMessage">操作成功!</span>
+        <button class="close-btn" tabindex="0">&times;</button>
+    </div>
+
+    <div id="keyboardHint" class="keyboard-hint">
+        <h4>键盘快捷键</h4>
+        <ul>
+            <li><span>切换静音</span> <span class="key">M</span></li>
+            <li><span>全屏/退出</span> <span class="key">F</span></li>
+            <li><span>画中画</span> <span class="key">P</span></li>
+            <li><span>音量+/-</span> <span class="key">↑/↓</span></li>
+            <li><span>播放/暂停</span> <span class="key">空格</span></li>
+            <li><span>关闭提示</span> <span class="key">ESC</span></li>
+        </ul>
+    </div>
+
+    <header
+        class="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-solid border-[var(--border-color)] bg-[var(--primary-bg)]">
+        <div class="flex items-center">
+            <h1 class="text-lg sm:text-xl font-semibold mr-1">
+                <span>Stream</span>
+                <span class="hidden xs:inline"> Alone</span>
+            </h1>
+            <span
+                class="ml-2 bg-red-600 text-white px-1.5 py-0.5 rounded text-xs font-bold flex items-center whitespace-nowrap hidden sm:flex">
+                <span class="w-2 h-2 bg-white rounded-full inline-block animate-pulse mr-1"></span>LIVE
+            </span>
+        </div>
+
+        <div class="flex items-center gap-1 sm:gap-4">
+            <div class="flex items-center overflow-hidden">
+                <span class="mr-1 sm:mr-2 text-xs sm:text-sm text-[var(--text-secondary)] flex items-center">
+                    <i class="fas fa-user mr-0.5 sm:mr-1"></i>
+                    <span id="username" class="truncate max-w-[60px] sm:max-w-none">UserName123</span>
+                </span>
+                <button id="logoutBtn" tabindex="0" aria-label="退出登录"
+                    class="text-xs sm:text-sm whitespace-nowrap ml-1 px-2 py-1 rounded border border-[var(--border-color)] bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1">
+                    <i class="fas fa-sign-out-alt text-[var(--icon-color)]" aria-hidden="true"></i><span
+                        class="hidden sm:inline">登出</span>
+                </button>
+            </div>
+            <button id="settingsBtn" tabindex="0" aria-label="打开用户设置"
+                class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0 ml-1">
+                <i class="fas fa-cog text-[var(--icon-color)]" aria-hidden="true"></i>
+            </button>
+            <button id="themeToggle" tabindex="0" aria-label="切换主题"
+                class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0 ml-1">
+                <i id="themeIcon" class="fas fa-moon text-[var(--icon-color)]" aria-hidden="true"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-col md:flex-row flex-1 overflow-hidden" id="main-content">
+        <div class="h-[33vh] md:flex-1 md:h-auto stream-container relative">
+            <div id="loadingContainer" class="loading-container">
+                <div class="loading-spinner"></div>
+                <p class="text-base">加载直播中...</p>
+            </div>
+
+            <video id="streamVideo" class="stream-video" autoplay muted tabindex="0">
+                <source src="" type="video/mp4">
+                你的浏览器不支持HTML5视频标签。
+            </video>
+
+            <div id="offlineOverlay" class="offline-overlay">
+                <i class="fas fa-video-slash text-5xl mb-4"></i>
+                <h2 class="text-2xl font-bold mb-2">当前无人直播</h2>
+            </div>
+
+            <div
+                class="live-controls absolute bottom-0 left-0 right-0 px-4 py-3 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <button id="muteBtn" tabindex="0" aria-label="切换静音状态"
+                        class="tooltip-container w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                        <i class="fas fa-volume-up text-white" aria-hidden="true"></i>
+                        <span class="tooltip">静音</span>
+                    </button>
+                    <input type="range" class="volume-slider" min="0" max="100" value="50" id="volumeSlider"
+                        tabindex="0" aria-label="音量控制">
+
+                    <div
+                        class="ml-4 px-2 py-1 bg-black/30 rounded text-white text-sm font-geist-mono flex items-center">
+                        <span id="streamDuration">00:00:00</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="tooltip-container">
+                        <button id="pipBtn" tabindex="0" aria-label="开启画中画模式"
+                            class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                            <i class="fas fa-external-link-alt text-white" aria-hidden="true"></i>
+                        </button>
+                        <span class="tooltip">画中画</span>
+                    </div>
+
+                    <div class="tooltip-container">
+                        <button id="fullscreenBtn" tabindex="0" aria-label="进入全屏模式"
+                            class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
+                            <i class="fas fa-expand text-white" aria-hidden="true"></i>
+                        </button>
+                        <span class="tooltip">全屏</span>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="absolute top-4 right-4 px-3 py-1.5 bg-black/50 backdrop-blur-sm text-white rounded-full text-sm flex items-center">
+                <i class="fas fa-eye mr-2"></i>
+                <span id="viewerCount">1,245</span>
+            </div>
+        </div>
+
+        <div
+            class="flex-1 h-[67vh] md:h-auto md:max-w-sm border-l border-solid border-[var(--border-color)] flex flex-col bg-[var(--primary-bg)]">
+            <div class="flex border-b border-solid border-[var(--border-color)]">
+                <button id="chatTab" tabindex="0" aria-label="切换到聊天选项卡" aria-selected="true" role="tab"
+                    class="tab-active flex-1 py-3 text-center font-medium">
+                    <i class="fas fa-comment-alt mr-1" aria-hidden="true"></i>聊天
+                </button>
+                <button id="viewersTab" tabindex="0" aria-label="切换到在线用户选项卡" aria-selected="false" role="tab"
+                    class="flex-1 py-3 text-center font-medium text-[var(--text-secondary)]">
+                    <i class="fas fa-users mr-1" aria-hidden="true"></i>在线用户
+                </button>
+            </div>
+
+            <div id="chatContainer" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- 聊天消息将通过JavaScript动态生成 -->
+            </div>
+
+            <div id="viewersContainer" class="hidden flex-1 overflow-y-auto p-4">
+                <div class="mb-3">
+                    <span class="text-sm text-[var(--text-secondary)]">在线人数: <span id="totalViewers">1,245</span></span>
+                </div>
+
+                <div id="viewersList" class="space-y-2">
+                    <!-- 观众列表将通过JavaScript动态生成 -->
+                </div>
+            </div>
+
+            <div
+                class="p-3 border-t border-solid border-[var(--border-color)] bg-[var(--secondary-bg)] sticky bottom-0">
+                <div class="flex items-center gap-2">
+                    <input type="text" id="messageInput" tabindex="0" aria-label="输入聊天消息"
+                        class="flex-1 px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]"
+                        placeholder="输入消息..." />
+                    <button id="sendMessageBtn" tabindex="0" aria-label="发送消息"
+                        class="w-10 h-10 flex items-center justify-center bg-[var(--accent-color)] text-white rounded hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer
+        class="py-2 px-4 text-xs text-[var(--text-secondary)] text-center border-t border-solid border-[var(--border-color)] mt-auto">
+        FuyuRen 2025 &copy; All rights reserved.
+    </footer>
+
+    <script>
+        /**
+         * TODO: [重要] 在生产环境部署前：
+         * 1. 移除所有带有"TODO: 在生产环境中移除"标记的测试代码
+         * 2. 移除测试状态切换按钮
+         * 3. 实现真实的直播状态检测逻辑
+         */
+
+        window.addEventListener('load', () => {
+            if (document.activeElement && document.activeElement !== document.body) {
+                document.activeElement.blur();
+            }
+        });
+
+        window.addEventListener("wheel", (e) => {
+            const isPinching = e.ctrlKey;
+            if (isPinching) e.preventDefault();
+        }, { passive: false });
+
+        $(document).ready(function () {
+            function initKeyboardNavigation() {
+                $('body').addClass('keyboard-navigation');
+
+                $(document).on('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        if ($('#settingsModal').is(':visible')) {
+                            closeSettingsModal();
+                        } else if ($('#keyboardHint').hasClass('show')) {
+                            $('#keyboardHint').removeClass('show');
+                        }
+                    }
+
+                    if (e.key === '?' && !$(e.target).is('input')) {
+                        e.preventDefault();
+                        $('#keyboardHint').addClass('show');
+
+                        setTimeout(() => {
+                            $('#keyboardHint').removeClass('show');
+                        }, 3000);
+                    }
+                });
+
+                $(document).on('keydown', function (e) {
+                    if (e.key === 'Tab') {
+                        if ($('#settingsModal').is(':visible')) {
+                            const focusableElements = $('#settingsModal').find('input, button, [tabindex="0"]').filter(':visible');
+                            const firstElement = focusableElements.first();
+                            const lastElement = focusableElements.last();
+
+                            if (e.shiftKey) {
+                                if ($(document.activeElement).is(firstElement)) {
+                                    e.preventDefault();
+                                    lastElement.focus();
+                                }
+                            } else {
+                                if ($(document.activeElement).is(lastElement)) {
+                                    e.preventDefault();
+                                    firstElement.focus();
+                                }
+                            }
+                        }
+                    }
+                });
+
+                $(document).on('keydown', 'button[tabindex="0"]', function (e) {
+                    if (e.key === ' ' || e.key === 'Enter') {
+                        e.preventDefault();
+                        $(this).click();
+                    }
+                });
+
+                $('#streamVideo').on('keydown', function (e) {
+                    const video = this;
+                    switch (e.key) {
+                        case ' ':
+                            e.preventDefault();
+                            if (video.paused) {
+                                video.play();
+                            } else {
+                                video.pause();
+                            }
+                            break;
+                        case 'f':
+                        case 'F':
+                            e.preventDefault();
+                            $('#fullscreenBtn').click();
+                            break;
+                        case 'm':
+                        case 'M':
+                            e.preventDefault();
+                            $('#muteBtn').click();
+                            break;
+                        case 'p':
+                        case 'P':
+                            e.preventDefault();
+                            $('#pipBtn').click();
+                            break;
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            const currentVolume = $('#volumeSlider').val();
+                            const newVolumeUp = Math.min(100, parseInt(currentVolume) + 10);
+                            $('#volumeSlider').val(newVolumeUp).trigger('input');
+                            break;
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            const currentVolumeDown = $('#volumeSlider').val();
+                            const newVolumeDown = Math.max(0, parseInt(currentVolumeDown) - 10);
+                            $('#volumeSlider').val(newVolumeDown).trigger('input');
+                            break;
+                    }
+                });
+
+                $('button, input, [tabindex="0"]').on('focus', function () {
+                    $(this).addClass('focused');
+                }).on('blur', function () {
+                    $(this).removeClass('focused');
+                });
+            }
+
+            initKeyboardNavigation();
+
+            function showToast(selector, duration = 5000) {
+                const toast = $(selector);
+                toast.addClass('show');
+
+                const closeBtn = toast.find('.close-btn');
+
+                if (duration !== -1) {
+                    setTimeout(() => hideToast(selector), duration);
+                }
+
+                closeBtn.on('click', () => hideToast(selector));
+            }
+
+            function hideToast(selector) {
+                $(selector).removeClass('show');
+            }
+
+            const themeToggle = $('#themeToggle');
+            const themeIcon = $('#themeIcon');
+
+            if (localStorage.getItem('theme') === 'dark' ||
+                (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                themeIcon.removeClass('fa-moon').addClass('fa-sun');
+            }
+
+            themeToggle.on('click', function () {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    themeIcon.removeClass('fa-sun').addClass('fa-moon');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    themeIcon.removeClass('fa-moon').addClass('fa-sun');
+                }
+            });
+
+            $('#chatTab').on('click', function () {
+                $('#chatTab').addClass('tab-active').removeClass('text-[var(--text-secondary)]').attr('aria-selected', 'true');
+                $('#viewersTab').removeClass('tab-active').addClass('text-[var(--text-secondary)]').attr('aria-selected', 'false');
+                $('#chatContainer').show();
+                $('#viewersContainer').hide();
+            });
+
+            $('#viewersTab').on('click', function () {
+                $('#viewersTab').addClass('tab-active').removeClass('text-[var(--text-secondary)]').attr('aria-selected', 'true');
+                $('#chatTab').removeClass('tab-active').addClass('text-[var(--text-secondary)]').attr('aria-selected', 'false');
+                $('#viewersContainer').show();
+                $('#chatContainer').hide();
+            });
+
+            $('.message-wrapper').next('button').on('click', function () {
+                const wrapper = $(this).prev('.message-wrapper');
+                if (wrapper.hasClass('collapsed')) {
+                    wrapper.removeClass('collapsed');
+                    $(this).text('Show less');
+                } else {
+                    wrapper.addClass('collapsed');
+                    $(this).text('Show more');
+                }
+            });
+
+            let isMuted = false;
+            $('#muteBtn').on('click', function () {
+                isMuted = !isMuted;
+                if (isMuted) {
+                    $(this).find('i').removeClass('fa-volume-up').addClass('fa-volume-mute');
+                    $(this).find('.tooltip').text('取消静音');
+                    $('#streamVideo')[0].muted = true;
+                } else {
+                    $(this).find('i').removeClass('fa-volume-mute').addClass('fa-volume-up');
+                    $(this).find('.tooltip').text('静音');
+                    $('#streamVideo')[0].muted = false;
+                    hideToast('#muteToast');
+                }
+            });
+
+            $('#volumeSlider').on('input', function () {
+                const volume = $(this).val() / 100;
+                const video = $('#streamVideo')[0];
+                video.volume = volume;
+
+                if (volume === 0) {
+                    $('#muteBtn').find('i').removeClass('fa-volume-up').addClass('fa-volume-mute');
+                    $('#muteBtn').find('.tooltip').text('取消静音');
+                    isMuted = true;
+                    video.muted = true;
+                } else if (isMuted) {
+                    $('#muteBtn').find('i').removeClass('fa-volume-mute').addClass('fa-volume-up');
+                    $('#muteBtn').find('.tooltip').text('静音');
+                    isMuted = false;
+                    video.muted = false;
+                    hideToast('#muteToast');
+                }
+
+                if (volume > 0 && !video.muted) {
+                    hideToast('#muteToast');
+                }
+            });
+
+            $('#pipBtn').on('click', function () {
+                if (document.pictureInPictureElement) {
+                    document.exitPictureInPicture();
+                } else if (document.pictureInPictureEnabled) {
+                    $('#streamVideo')[0].requestPictureInPicture();
+                }
+            });
+
+            $('#fullscreenBtn').on('click', function () {
+                const video = $('#streamVideo')[0];
+
+                if (!document.fullscreenElement) {
+                    if (video.requestFullscreen) {
+                        video.requestFullscreen();
+                    } else if (video.webkitRequestFullscreen) {
+                        video.webkitRequestFullscreen();
+                    } else if (video.msRequestFullscreen) {
+                        video.msRequestFullscreen();
+                    }
+                    $(this).find('i').removeClass('fa-expand').addClass('fa-compress');
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                    $(this).find('i').removeClass('fa-compress').addClass('fa-expand');
+                }
+            });
+
+            $('#sendMessageBtn').on('click', function () {
+                sendMessage();
+            });
+
+            $('#messageInput').on('keypress', function (e) {
+                if (e.which === 13) {
+                    sendMessage();
+                }
+            });
+
+            function sendMessage() {
+                const message = $('#messageInput').val().trim();
+                if (message) {
+                    // TODO: 实际应用中，需要通过API从后端获取当前用户是否为主播
+                    const isHost = false;
+                    addMessageToChat(message, null, "user123", null, isHost);
+                    $('#messageInput').val('');
+
+                    // TODO: 向服务器发送消息
+                    // 消息格式示例:
+                    // {
+                    //    message: message,
+                    //    userId: "user123",
+                    //    timestamp: Date.now(),
+                    //    isHost: false
+                    // }
+                }
+            }
+
+            function isEmojiOnlyMessage(message) {
+                const emojiRegex = /^[\p{Emoji}]+$/u;
+                return emojiRegex.test(message) &&
+                    !/[0-9a-zA-Z]/.test(message) &&
+                    message.length <= 3;
+            }
+
+            function isLongMessage(message) {
+                return message.length > 100;
+            }
+
+            function addMessageToChat(message, username = null, userId = null, timestamp = null, isHost = false) {
+                const usernameFinal = username || $('#username').text();
+                const now = timestamp ? new Date(timestamp) : new Date();
+                const time = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                const initials = usernameFinal.charAt(0).toUpperCase();
+
+                const userColor = getUserColor(userId);
+
+                const isEmojiOnly = isEmojiOnlyMessage(message);
+                const isLong = isLongMessage(message);
+
+                let messageHTML = '';
+
+                if (isLong) {
+                    messageHTML = `
+                        <div class="message flex gap-2">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full ${userColor} flex items-center justify-center text-white font-medium">
+                                ${initials}
+                            </div>
+                            <div class="flex-grow">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium">
+                                        ${usernameFinal}
+                                    </span>
+                                    ${isHost ? `<span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-1.5 py-0.5 rounded">HOST</span>` : ''}
+                                    <span class="text-xs text-[var(--text-secondary)]">${time}</span>
+                                </div>
+                                <div class="mt-1">
+                                    <div class="message-wrapper collapsed">
+                                        <div class="p-2 rounded bg-[var(--message-bg)] message-text w-full">
+                                            ${message}
+                                        </div>
+                                    </div>
+                                    <button class="mt-1 text-xs text-[var(--accent-color)]">Show more</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    let messageContent = isEmojiOnly ? `<span class="emoji-only">${message}</span>` : message;
+
+                    messageHTML = `
+                        <div class="message flex gap-2">
+                            <div class="flex-shrink-0 w-8 h-8 rounded-full ${userColor} flex items-center justify-center text-white font-medium">
+                            ${initials}
+                            </div>
+                            <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium">
+                                    ${usernameFinal}
+                                </span>
+                                ${isHost ? `<span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-1.5 py-0.5 rounded">HOST</span>` : ''}
+                                <span class="text-xs text-[var(--text-secondary)]">${time}</span>
+                            </div>
+                            <div class="inline-flex mt-1">
+                                <div class="p-2 rounded bg-[var(--message-bg)] message-text">
+                                ${messageContent}
+                                </div>
+                            </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                $('#chatContainer').append(messageHTML);
+                $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
+
+                if (isLong) {
+                    $('.message-wrapper').next('button').off('click').on('click', function () {
+                        const wrapper = $(this).prev('.message-wrapper');
+                        if (wrapper.hasClass('collapsed')) {
+                            wrapper.removeClass('collapsed');
+                            $(this).text('Show less');
+                        } else {
+                            wrapper.addClass('collapsed');
+                            $(this).text('Show more');
+                        }
+                    });
+                }
+            }
+
+            $('#logoutBtn').on('click', function () {
+                fetch('/logout', { method: 'POST' })
+                    .then(_ => {
+                        window.localStorage.removeItem('authToken');
+                        window.location.href = '/';
+                    })
+                    .catch(error => {
+                        // TODO
+                        alert(error);
+                    })
+
+            });
+
+            const settingsModal = $('#settingsModal');
+            const settingsOverlay = $('#settingsOverlay');
+            const closeSettingsBtn = $('#closeSettingsBtn');
+            const cancelSettingsBtn = $('#cancelSettingsBtn');
+            const settingsForm = $('#settingsForm');
+
+            $('#settingsBtn').on('click', function () {
+                resetSettingsForm();
+                settingsModal.removeClass('hidden');
+            });
+
+            function closeSettingsModal() {
+                settingsModal.addClass('hidden');
+                resetSettingsForm();
+                const modalContent = settingsModal.find('.rounded-lg');
+                if (modalContent.length > 0) {
+                    modalContent.removeClass('modal-animate-in');
+                    modalContent.removeClass('modal-animate-out');
+                }
+            }
+
+            $('#closeSettingsBtn').on('click', function () {
+                closeSettingsModal();
+            });
+
+            $('#cancelSettingsBtn').on('click', function () {
+                closeSettingsModal();
+            });
+
+            $('#settingsOverlay').on('click', function () {
+                closeSettingsModal();
+            });
+
+            function resetSettingsForm() {
+                if (settingsForm && settingsForm.length > 0) {
+                    settingsForm[0].reset();
+                    $('.text-red-500').addClass('hidden');
+                }
+            }
+
+            const textEncoder = new TextEncoder();
+            function validateUsername(username) {
+                let len = textEncoder.encode(username).length;
+                return len >= 4 && len <= 24;
+            }
+         
+            function validatePassword(password) {
+                const result = {
+                    isValid: true,
+                    errors: []
+                };
+
+                if (password.length < 8 || password.length > 32) {
+                    result.isValid = false;
+                    result.errors.push('length');
+                }
+
+                if (!/^[a-zA-Z0-9]+$/.test(password)) {
+                    result.isValid = false;
+                    result.errors.push('chars');
+                }
+
+                const hasLetter = /[a-zA-Z]/.test(password);
+                const hasNumber = /[0-9]/.test(password);
+                if (!hasLetter || !hasNumber) {
+                    result.isValid = false;
+                    result.errors.push('combo');
+                }
+
+                return result;
+            }
+
+            $('#newUsername').on('input', function () {
+                const username = $(this).val().trim();
+                const errorElem = $('#usernameError');
+
+                if (username && !validateUsername(username)) {
+                    errorElem.removeClass('hidden');
+                } else {
+                    errorElem.addClass('hidden');
+                }
+            }); $('#newPassword, #confirmPassword').on('input', function () {
+                const password = $('#newPassword').val();
+                const confirmPassword = $('#confirmPassword').val();
+
+                $('#passwordLengthError').addClass('hidden');
+                $('#passwordCharError').addClass('hidden');
+                $('#passwordComboError').addClass('hidden');
+                $('#confirmError').addClass('hidden');
+
+                if (password) {
+                    const validation = validatePassword(password);
+                    if (!validation.isValid) {
+                        validation.errors.forEach(error => {
+                            if (error === 'length') {
+                                $('#passwordLengthError').removeClass('hidden');
+                            } else if (error === 'chars') {
+                                $('#passwordCharError').removeClass('hidden');
+                            } else if (error === 'combo') {
+                                $('#passwordComboError').removeClass('hidden');
+                            }
+                        });
+                    }
+                }
+
+                if (confirmPassword && password !== confirmPassword) {
+                    $('#confirmError').removeClass('hidden');
+                }
+            });
+
+            settingsForm.on('submit', async function (e) {
+                /*
+                * 用户个人资料更新 API 交互说明:
+                *
+                * 目的:            允许用户更新其用户名和/或密码。
+                * API 端点:        /user/profile
+                * HTTP 方法:       PUT
+                * 认证方式:        JWT (在 Authorization 头部中携带 Bearer Token, Token 从 localStorage['authToken'] 获取)
+                *
+                * 请求体 (Content-Type: application/json):
+                *   {
+                *     "currentPassword": "当前用户密码",     // 必填
+                *     "newUsername": "可选的新用户名",       // 可选, 如果提供且有效则发送
+                *     "newPassword": "可选的新密码"          // 可选, 如果提供且有效则发送
+                *   }
+                *
+                * 成功响应 (HTTP 状态码 2xx, 并且响应体中 "success": true, Content-Type: application/json):
+                *   {
+                *     "id": 123,
+                *     "success": true,
+                *     "payload": { // payload 可能为 null，或者不包含 message/user
+                *       "message": "描述性成功消息，例如 '用户名已更新'", // 可选
+                *       "user": { // 可选, 仅当用户名更新且后端决定返回时
+                *         "username": "更新后的用户名"
+                *       }
+                *     },
+                *     "created_at": "YYYY-MM-DDTHH:mm:ss.sssZ"
+                *   }
+                *   - 'payload.message' (如果存在且非空) 将用于提示框。
+                *   - 'payload.user.username' (如果存在) 将更新界面用户名。
+                *
+                * 逻辑失败响应 (HTTP 状态码 2xx, 但响应体中 "success": false, Content-Type: application/json):
+                *   {
+                *     "id": 456,
+                *     "success": false,
+                *     "payload": { // payload 可能为 null, 或不包含 error/message
+                *       "error": "具体的错误信息 (优先于 payload.message)",   // 可选
+                *       "message": "具体的错误信息 (若 payload.error 无)"     // 可选
+                *     },
+                *     // 或者错误信息在顶层:
+                *     "error": "具体的错误信息 (若payload中无, 优先于顶层message)", // 可选
+                *     "message": "具体的错误信息 (若payload和顶层error中无)",       // 可选
+                *     "created_at": "YYYY-MM-DDTHH:mm:ss.sssZ"
+                *   }
+                *   - 错误信息查找顺序: `payload.error`, `payload.message`, `error` (顶层), `message` (顶层).
+                *   - 如果上述字段均无有效错误信息，则显示 "操作失败，但未收到具体错误详情。"
+                *
+                * HTTP/网络错误响应 (HTTP 状态码非 2xx):
+                *   - 响应体结构不确定，可能包含上述错误信息字段，也可能无有效 JSON 体。
+                *   - 将尝试从响应体中提取错误信息，否则显示通用的HTTP错误提示。
+                */
+                e.preventDefault();
+
+                const newUsername = $('#newUsername').val().trim();
+                const newPassword = $('#newPassword').val();
+                const confirmPassword = $('#confirmPassword').val();
+                const currentPasswordValue = $('#currentPassword').val();
+                
+                let hasError = false;
+                $('#usernameError').addClass('hidden');
+                $('#passwordLengthError').addClass('hidden');
+                $('#passwordCharError').addClass('hidden');
+                $('#passwordComboError').addClass('hidden');
+                $('#confirmError').addClass('hidden');
+                $('#currentPasswordError').addClass('hidden');
+
+                if (!currentPasswordValue) {
+                    $('#currentPasswordError').removeClass('hidden');
+                    hasError = true;
+                }
+
+                if (newUsername && !validateUsername(newUsername)) {
+                    $('#usernameError').removeClass('hidden');
+                    hasError = true;
+                }
+
+                if (newPassword) {
+                    const validation = validatePassword(newPassword);
+                    if (!validation.isValid) {
+                        validation.errors.forEach(error => {
+                            if (error === 'length') {
+                                $('#passwordLengthError').removeClass('hidden');
+                            } else if (error === 'chars') {
+                                $('#passwordCharError').removeClass('hidden');
+                            } else if (error === 'combo') {
+                                $('#passwordComboError').removeClass('hidden');
+                            }
+                        });
+                        hasError = true;
+                    }
+                    if (newPassword !== confirmPassword) {
+                        $('#confirmError').removeClass('hidden');
+                        hasError = true;
+                    }
+                }
+
+                if (hasError) return;
+
+                const updateData = { currentPassword: currentPasswordValue };
+                if (newUsername) {
+                    updateData.newUsername = newUsername;
+                }
+                if (newPassword) {
+                    updateData.newPassword = newPassword;
+                }
+
+                $('#saveSettingsBtn').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
+
+                try {
+                    const token = localStorage.getItem('authToken');
+                    if (!token) {
+                        $('#successMessage').text('用户未登录或会话已过期，请重新登录。');
+                        showToast('#successToast', 5000);
+                        $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+                        return;
+                    }
+
+                    const response = await fetch('/user/profile', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(updateData)
+                    });
+
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (jsonError) {
+                        console.warn('未能解析服务器响应的JSON:', jsonError, '响应状态:', response.status);
+                    }
+
+                    if (response.ok && data && data.success === true) {
+                        let successMsg = '用户信息更新成功！';
+                        if (data.payload && typeof data.payload.message === 'string' && data.payload.message.trim() !== '') {
+                            successMsg = data.payload.message;
+                        }
+
+                        if (data.payload?.user && typeof data.payload.user?.username === 'string') {
+                            $('#username').text(data.payload.user.username);
+                        }
+                        closeSettingsModal();
+                        $('#successMessage').text(successMsg);
+                        showToast('#successToast', 3000);
+                    } else {
+                        let errorMsg = '更新失败，请稍后重试。';
+
+                        if (!response.ok) {
+                            // HTTP 错误 (非 2xx)
+                            errorMsg = `请求失败 (状态码: ${response.status})。`;
+                            let specificErrorFromBody = '';
+                            if (data) { // 尝试从可能存在的JSON响应体中获取更具体错误
+                                if (data.payload && typeof data.payload === 'object') {
+                                    if (typeof data.payload.error === 'string' && data.payload.error.trim() !== '') specificErrorFromBody = data.payload.error;
+                                    else if (typeof data.payload.message === 'string' && data.payload.message.trim() !== '') specificErrorFromBody = data.payload.message;
+                                }
+                                if (!specificErrorFromBody) {
+                                    if (typeof data.error === 'string' && data.error.trim() !== '') specificErrorFromBody = data.error;
+                                    else if (typeof data.message === 'string' && data.message.trim() !== '') specificErrorFromBody = data.message;
+                                }
+                            }
+                            if (specificErrorFromBody) {
+                                errorMsg += ` 详情: ${specificErrorFromBody}`;
+                            }
+                            errorMsg += ' 请检查网络或稍后重试。';
+                        } else if (data === null) { // HTTP OK, 但JSON解析失败
+                            errorMsg = `服务器响应格式错误 (状态码: ${response.status})。请稍后重试。`;
+                        } else if (data.success === false) { // HTTP OK, JSON已解析, 业务逻辑失败 (success: false)
+                            let specificBusinessErrorFound = false;
+                            // payload.error
+                            if (data.payload && typeof data.payload === 'object' && typeof data.payload.error === 'string' && data.payload.error.trim() !== '') {
+                                errorMsg = data.payload.error;
+                                specificBusinessErrorFound = true;
+                            }
+                            // payload.message
+                            if (!specificBusinessErrorFound && data.payload && typeof data.payload === 'object' && typeof data.payload.message === 'string' && data.payload.message.trim() !== '') {
+                                errorMsg = data.payload.message;
+                                specificBusinessErrorFound = true;
+                            }
+                            // 顶层error
+                            if (!specificBusinessErrorFound && typeof data.error === 'string' && data.error.trim() !== '') {
+                                errorMsg = data.error;
+                                specificBusinessErrorFound = true;
+                            }
+                            // 顶层message
+                            if (!specificBusinessErrorFound && typeof data.message === 'string' && data.message.trim() !== '') {
+                                errorMsg = data.message;
+                                specificBusinessErrorFound = true;
+                            }
+                            // 通用业务失败消息
+                            if (!specificBusinessErrorFound) {
+                                errorMsg = '操作失败，但未收到具体错误详情。';
+                            }
+                        } else if (!data.hasOwnProperty('success')) { // HTTP OK, JSON已解析, 但缺少 'success' 字段
+                            errorMsg = '服务器响应无效 (缺少success字段)。请稍后重试。';
+                        }
+                        $('#successMessage').text(errorMsg);
+                        showToast('#successToast', 5000);
+                    }
+                } catch (networkError) {
+                    console.error('用户设置更新网络请求失败:', networkError);
+                    $('#successMessage').text('网络连接错误，请检查您的网络并稍后重试。');
+                    showToast('#successToast', 5000);
+                } finally {
+                    $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+                }
+            });
+
+            const isLiveStreaming = true;
+            setupMockStream(isLiveStreaming);
+
+            function setupMockStream(isLive = true) {
+                const video = document.getElementById('streamVideo');
+                const offlineOverlay = document.getElementById('offlineOverlay');
+                const loadingContainer = document.getElementById('loadingContainer');
+
+                if (isLive) {
+                    offlineOverlay.classList.remove('active');
+                    // TODO: 在生产环境中替换为实际的直播流地址
+                    // video.src = 'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4';
+                    video.muted = true;
+
+                    video.onloadeddata = function () {
+                        setTimeout(() => {
+                            loadingContainer.style.display = 'none';
+                        }, 1000);
+                    };
+
+                    video.play().then(() => {
+                        if (video.muted) {
+                            showToast('#muteToast', 8000);
+                            $('#muteBtn').find('i').removeClass('fa-volume-up').addClass('fa-volume-mute');
+                            $('#muteBtn').find('.tooltip').text('取消静音');
+                            isMuted = true;
+                            video.muted = true;
+                        }
+                    }).catch(e => {
+                        console.error("Play error:", e);
+                        showToast('#muteToast', 8000);
+                    });
+                } else {
+                    loadingContainer.style.display = 'none';
+                    offlineOverlay.classList.add('active');
+                    video.pause();
+                    video.removeAttribute('src');
+                    video.load();
+                }
+
+                setInterval(function () {
+                    if (video.readyState > 0 && !video.paused) {
+                        const duration = formatTime(video.currentTime);
+                        $('#streamDuration').text(duration);
+                    }
+                }, 1000);
+            }
+
+            function setStreamLiveStatus(isLive) {
+                setupMockStream(isLive);
+
+                const controls = $('.live-controls');
+                const viewerCountOverlay = $('.absolute.top-4.right-4');
+                const streamContainer = $('.stream-container');
+
+                if (!isLive) {
+                    controls.css('opacity', '0');
+                    controls.css('pointer-events', 'none');
+                    viewerCountOverlay.hide();
+                    $('#viewerCount').text('0');
+                    $('#totalViewers').text('0');
+                    $('#viewersList').empty();
+
+                    streamContainer.addClass('offline-stream');
+                } else {
+                    controls.css('pointer-events', 'auto');
+                    viewerCountOverlay.show();
+
+                    streamContainer.removeClass('offline-stream');
+
+                    // TODO: 在生产环境中删除测试数据调用，使用真实数据
+                    addTestViewers();
+                }
+            }
+
+            // 格式化时间为 HH:MM:SS
+            function formatTime(seconds) {
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = Math.floor(seconds % 60);
+                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            }
+
+            // TODO: 后端集成API
+            function fetchStreamData() {
+                // TODO: 对接直播流获取API
+                // 应包含直播间标题、状态、观众数、直播时长等信息
+            }
+
+            function fetchChatHistory() {
+                // TODO: 对接聊天历史记录API
+                // 获取最近的聊天记录，包括消息内容、发送者信息、时间戳等
+            }
+
+            function fetchViewersList() {
+                // TODO: 对接观众列表API
+                // 获取当前观众列表，包括用户名、ID、状态等
+            }
+
+            function listenForNewMessages() {
+                // TODO: 对接WebSocket，建立实时消息通知
+                // 实现新消息的实时接收和展示
+            }
+
+            function listenForViewerUpdates() {
+                // TODO: 对接WebSocket，监听观众数量变化
+                // 实时更新观众数量和观众列表
+            }
+
+            function getUserColor(userId) {
+                const colors = ['bg-blue-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500'];
+
+                if (!userId) {
+                    return colors[Math.floor(Math.random() * colors.length)];
+                }
+
+                let hash = 0;
+                for (let i = 0; i < userId.length; i++) {
+                    hash = ((hash << 5) - hash) + userId.charCodeAt(i);
+                    hash = hash & hash;
+                }
+
+                hash = Math.abs(hash);
+
+                const colorIndex = hash % colors.length;
+
+                return colors[colorIndex];
+            }
+
+            // 添加测试数据 
+            // TODO: 在生产环境中移除此测试数据
+            addTestMessages();
+            addTestViewers();
+
+            // TODO: 在生产环境中移除此测试代码
+            $('#toggleStreamBtn').on('click', function () {
+                const isCurrentlyLive = !$('#offlineOverlay').hasClass('active');
+                setStreamLiveStatus(!isCurrentlyLive);
+            });
+
+            // TODO: 在生产环境中移除此函数
+            function addTestMessages() {
+                const testMessages = [
+                    {
+                        userId: 'user1',
+                        username: '刘子',
+                        message: '我是弱智😀',
+                        timestamp: '2025-05-10T10:42:00'
+                    },
+                    {
+                        userId: 'user2',
+                        username: '张子',
+                        message: '👋',
+                        timestamp: '2025-05-10T10:43:00'
+                    },
+                    {
+                        userId: 'user3',
+                        username: '沈子',
+                        message: '这是一个用于测试的长消息，看看它在聊天窗口中是如何显示的。众所周知，长消息可能会影响聊天窗口的布局，所以我们需要确保它们能够正确地显示和处理。那么，让我们看看这个长消息在聊天窗口中的效果如何。怎么样？哈哈！昨天晚上，我看了一部非常有趣的电影，真是太好笑了！',
+                        timestamp: '2025-05-10T10:45:00'
+                    },
+                    {
+                        userId: 'host1',
+                        username: '浮玉',
+                        message: '欢迎来到直播间！',
+                        timestamp: '2025-05-10T10:47:00'
+                    },
+                    {
+                        userId: 'user4',
+                        username: '神秘人',
+                        message: '我烧起来了！🔥🔥🔥',
+                        timestamp: '2025-05-10T10:49:00'
+                    }
+                ];
+
+                testMessages.forEach(msg => {
+                    // TODO: 在生产环境中需要从后端API获取主播ID
+                    const isHost = msg.userId === 'host1';
+                    addMessageToChat(msg.message, msg.username, msg.userId, msg.timestamp, isHost);
+                });
+            }
+
+            // TODO: 在生产环境中移除此函数
+            function addTestViewers() {
+                const testViewers = [
+                    {
+                        userId: 'user1',
+                        username: '刘子',
+                        status: 'online',
+                        isHost: false
+                    },
+                    {
+                        userId: 'user2',
+                        username: '张子',
+                        status: 'online',
+                        isHost: false
+                    },
+                    {
+                        userId: 'user3',
+                        username: '沈子',
+                        status: 'online',
+                        isHost: false
+                    },
+                    {
+                        userId: 'host1',
+                        username: '浮玉',
+                        status: 'online',
+                        isHost: true
+                    },
+                    {
+                        userId: 'user4',
+                        username: '神秘人',
+                        status: 'online',
+                        isHost: false
+                    }
+                ];
+
+                $('#totalViewers').text(testViewers.length);
+
+                $('#viewersList').empty();
+
+                testViewers.forEach(viewer => {
+                    addViewerToList(viewer);
+                });
+            }
+
+            function addViewerToList(viewer) {
+                const initials = viewer.username.charAt(0).toUpperCase();
+                const userColor = getUserColor(viewer.userId);
+
+                const statusClass = viewer.isHost
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                    : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+
+                const statusText = viewer.isHost ? 'Host' : 'Online';
+
+                const viewerHTML = `
+                    <div class="flex items-center justify-between p-2 hover:bg-[var(--hover-bg)] rounded">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-full ${userColor} flex items-center justify-center text-white text-sm font-medium">
+                                ${initials}
+                            </div>
+                            <span>
+                                ${viewer.username}
+                            </span>
+                        </div>
+                        <span class="text-xs ${statusClass} px-1.5 py-0.5 rounded">${statusText}</span>
+                    </div>
+                `;
+
+                $('#viewersList').append(viewerHTML);
+            }
+
+            // TODO: 对接用户身份验证API
+            // TODO: 对接直播状态检测API
+            // TODO: 对接直播控制API（主播功能）
+            // TODO: 对接聊天消息发送与接收API
+            // TODO: 对接用户管理API
+        });
+    </script>
+</body>
+
+</html>
