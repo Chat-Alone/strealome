@@ -118,6 +118,11 @@
                     <h2 id="all-rooms-heading" class="text-2xl font-bold text-gray-900 dark:text-white">
                         房间列表
                     </h2>
+                    <button id="refresh-rooms-btn"
+                        class="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors text-sm"
+                        title="刷新房间列表">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                     <button id="join-room-btn"
                         class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors text-sm">
                         <i class="fas fa-users mr-2"></i>
@@ -157,9 +162,16 @@
 
         <section aria-labelledby="my-rooms-heading">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-                <h2 id="my-rooms-heading" class="text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-0">
-                    我创建的房间
-                </h2>
+                <div class="flex items-center gap-4 mb-4 sm:mb-0">
+                    <h2 id="my-rooms-heading" class="text-2xl font-bold text-gray-900 dark:text-white">
+                        我创建的房间
+                    </h2>
+                    <button id="refresh-my-rooms-btn"
+                        class="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors text-sm"
+                        title="刷新我的房间列表">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
 
                 <button id="create-room-btn"
                     class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
@@ -175,16 +187,16 @@
                         <thead class="bg-gray-50 dark:bg-[#1A1A1A]">
                             <tr>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                                     房间名</th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                                     创建时间</th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                                     状态</th>
                                 <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                                     操作</th>
                             </tr>
                         </thead>
@@ -358,7 +370,7 @@
                     try {
                         const errData = await response.json();
                         errorMsg = errData.message || errData.error || JSON.stringify(errData) || errorMsg;
-                    } catch (e) { /* ignore json parsing error */ }
+                    } catch (e) { }
                     throw new Error(errorMsg);
                 }
                 const data = await response.json();
@@ -388,7 +400,6 @@
 
         class ThemeManager {
             constructor() {
-                this.init();
             }
 
             async init() {
@@ -415,17 +426,13 @@
 
             async fetchUserProfile() {
                 try {
-                    //TODO: The JWT `sub` is i32, but not used here for profile fetch.
                     const userData = await fetchAPI('/user/profile');
                     AppState.currentUser.name = userData.username;
-                    // Assuming user ID might be needed later, but API doesn't return it in /user/profile
-                    // AppState.currentUser.internalId = userData.id; // If API returned it
                     const userDisplay = document.getElementById('current-user-display')?.querySelector('span');
                     if (userDisplay) userDisplay.textContent = AppState.currentUser.name;
                 } catch (error) {
                     const userDisplay = document.getElementById('current-user-display')?.querySelector('span');
                     if (userDisplay) userDisplay.textContent = "Error";
-                    window.roomManager?.showNotification('无法加载用户信息', 'error');
                 }
             }
 
@@ -445,7 +452,7 @@
                             window.roomManager?.showNotification('已成功登出', 'success');
                             window.location.href = '/login';
                         } catch (error) {
-                            // Notification is handled by fetchAPI
+                            window.roomManager?.showNotification(`登出失败: ${error.message}`, 'error');
                         }
                     });
                 }
@@ -456,69 +463,60 @@
             constructor() {
                 this.roomIdToTransfer = null;
                 this.roomNameToTransfer = null;
-                this.init();
             }
 
             async init() {
-                await this.fetchRoomsData();
+                await this.fetchInitialRoomData();
                 this.bindEvents();
                 this.bindTransferHostModalEvents();
             }
 
-            async fetchRoomsData() {
-                await this.fetchMyRooms();
-                await this.fetchPublicRooms(); // This will populate allRooms
-                this.renderAllRooms(); // Render all rooms after fetching public rooms
-                this.renderMyRooms();  // Render my rooms after fetching my rooms
-            }
-
-            async fetchMyRooms() {
+            async _fetchAndProcessRoomsFromServer() {
                 try {
                     const data = await fetchAPI('/room/my');
-                    AppState.myRooms = data.related_rooms.map(room => ({
-                        id: room.share_link,
-                        name: room.name,
-                        createTime: formatISODate(room.created_at),
-                        status: 'offline', // API doesn't provide status for related_rooms
-                        ownerName: AppState.currentUser.name // These are user's related rooms
-                    }));
-                } catch (error) {
-                    AppState.myRooms = [];
-                    this.showNotification('无法加载我创建的房间', 'error');
-                }
-                this.renderMyRooms();
-            }
-
-            async fetchPublicRooms() {
-                //TODO: API endpoint for all public rooms is not defined in the spec.
-                // Using related_rooms as a placeholder for allRooms data for now, this should be a separate API call.
-                // For proper functionality, this API should return: id (share_link), name, creator, createTime, status, audienceCount.
-                this.showNotification('加载房间列表功能(fetchPublicRooms)的API端点未定义，将使用模拟数据或空列表。', 'info');
-                try {
-                    // Placeholder: Simulating fetching "all" rooms.
-                    // In a real scenario, this would be a different endpoint like GET /chat/room/all
-                    // and its response structure might differ (e.g. include 'creator', 'status', 'audienceCount').
-                    const data = await fetchAPI('/room/my'); // Re-using related_rooms for demo
                     AppState.allRooms = data.related_rooms.map(apiRoom => ({
                         id: apiRoom.share_link,
                         name: apiRoom.name,
-                        creator: AppState.currentUser.name, // Placeholder, API should provide actual creator
+                        creator: apiRoom.host,
                         createTime: formatISODate(apiRoom.created_at),
-                        status: 'offline', // Placeholder, API should provide status
-                        audienceCount: Math.floor(Math.random() * 50) // Placeholder, API should provide audience
+                        status: apiRoom.hosting ? 'live' : 'offline',
+                        audienceCount: apiRoom.member_cnt
                     }));
+
+                    if (AppState.currentUser.name && AppState.currentUser.name !== 'Loading...' && AppState.currentUser.name !== 'Error') {
+                        AppState.myRooms = AppState.allRooms.filter(room => room.creator === AppState.currentUser.name);
+                    } else {
+                        AppState.myRooms = [];
+                        if (AppState.currentUser.name === 'Loading...') {
+                            console.warn("User profile still loading during room data processing. My Rooms list might be incomplete initially.");
+                        }
+                    }
                 } catch (error) {
-                    AppState.allRooms = [
-                        //TODO: Remove this placeholder test data for allRooms if a real public API is implemented
-                        { id: 'public-room-1', name: '公共游戏时光', creator: '主播张三', createTime: '2024-06-01 10:00 AM', status: 'live', audienceCount: 15 },
-                        { id: 'public-room-2', name: '公共音乐分享', creator: '音乐达人李四', createTime: '2024-06-01 09:30 AM', status: 'live', audienceCount: 25 },
-                        { id: 'public-room-3', name: '公共技术讨论', creator: '程序员王五', createTime: '2024-05-30 08:00 PM', status: 'offline', audienceCount: 0 },
-                    ];
-                    this.showNotification('无法加载公共房间列表，使用占位数据。', 'error');
+                    AppState.allRooms = [];
+                    AppState.myRooms = [];
+                    throw error;
                 }
-                this.renderAllRooms();
             }
 
+            async fetchInitialRoomData() {
+                document.getElementById('rooms-grid').innerHTML = `<p class="col-span-full text-center text-gray-500 dark:text-gray-400 py-8">正在加载房间列表...</p>`;
+                const myRoomsTbody = document.getElementById('my-rooms-tbody');
+                if (myRoomsTbody) {
+                    myRoomsTbody.innerHTML = `<tr><td colspan="4" class="text-center py-12 text-gray-500 dark:text-gray-400">正在加载我创建的房间...</td></tr>`;
+                }
+
+                try {
+                    await this._fetchAndProcessRoomsFromServer();
+                } catch (error) {
+                    document.getElementById('rooms-grid').innerHTML = `<p class="col-span-full text-center text-gray-500 dark:text-gray-400 py-8">加载房间列表失败。</p>`;
+                    if (myRoomsTbody) {
+                        myRoomsTbody.innerHTML = `<tr><td colspan="4" class="text-center py-12 text-gray-500 dark:text-gray-400">加载我创建的房间失败。</td></tr>`;
+                    }
+                }
+
+                this.renderAllRooms();
+                this.renderMyRooms();
+            }
 
             renderAllRooms() {
                 const grid = document.getElementById('rooms-grid');
@@ -543,7 +541,7 @@
 
                 if (paginatedRooms.length === 0 && filteredRooms.length > 0 && AppState.allRoomsCurrentPage > 1) {
                     AppState.allRoomsCurrentPage = Math.ceil(filteredRooms.length / AppState.allRoomsItemsPerPage);
-                    this.renderAllRooms(); // Re-render with corrected page
+                    this.renderAllRooms();
                     return;
                 }
 
@@ -668,9 +666,8 @@
             }
 
             joinLiveRoom(roomId) {
-                //TODO: Implement actual room joining logic (e.g., redirect or open video player using share_link/roomId)
-                this.showNotification(`尝试进入房间 ${roomId}... (功能待实现)`, 'info');
-                // window.location.href = `/${roomId}`; // This would use the share_link as path
+                this.showNotification(`正在进入房间 ${roomId}...`, 'info');
+                window.location.href = `/share/${roomId}`;
             }
 
 
@@ -680,11 +677,11 @@
 
                 if (!tbody || !emptyState) return;
 
-                const currentUserRooms = AppState.myRooms.filter(room => room.ownerName === AppState.currentUser.name);
+                const currentUserRooms = AppState.myRooms;
 
 
                 if (currentUserRooms.length === 0) {
-                    tbody.innerHTML = ''; // Clear previous loading message
+                    tbody.innerHTML = '';
                     emptyState.classList.remove('hidden');
                 } else {
                     emptyState.classList.add('hidden');
@@ -796,7 +793,6 @@
                 }
 
                 try {
-                    // API spec for POST /chat/room request body is not defined. Assuming it takes { name: "roomName" }.
                     const responsePayload = await fetchAPI('/room/create', {
                         method: 'POST',
                         body: JSON.stringify({ name: roomName.trim() })
@@ -804,24 +800,20 @@
 
                     const newApiRoom = responsePayload.room;
 
-                    const myRoomEntry = {
-                        id: newApiRoom.share_link,
-                        name: newApiRoom.name,
-                        createTime: formatISODate(newApiRoom.created_at),
-                        status: 'offline', // New rooms are offline by default
-                        ownerName: AppState.currentUser.name
-                    };
-                    AppState.myRooms.unshift(myRoomEntry);
-
-                    const allRoomEntry = {
+                    const newRoomEntry = {
                         id: newApiRoom.share_link,
                         name: newApiRoom.name,
                         creator: AppState.currentUser.name,
                         createTime: formatISODate(newApiRoom.created_at),
                         status: 'offline',
-                        audienceCount: 0 // New rooms have 0 audience
+                        audienceCount: 0
                     };
-                    AppState.allRooms.unshift(allRoomEntry);
+
+                    AppState.allRooms.unshift(newRoomEntry);
+
+                    if (newRoomEntry.creator === AppState.currentUser.name) {
+                        AppState.myRooms.unshift(newRoomEntry);
+                    }
 
                     AppState.myRoomsCurrentPage = 1;
                     AppState.allRoomsCurrentPage = 1;
@@ -830,7 +822,8 @@
                     this.showNotification('房间创建成功！', 'success');
 
                 } catch (error) {
-                    this.showNotification('创建房间失败', 'error');
+                    this.showNotification(`创建房间失败: ${error.message}`, 'error');
+                    console.error('Error creating room:', error);
                 }
             }
 
@@ -875,25 +868,81 @@
 
 
             async transferHost(roomId, newHostName) {
-                //TODO: Backend API call to transfer ownership. API endpoint not specified.
-                // Example: await fetchAPI(`/chat/room/${roomId}/transfer`, { method: 'POST', body: JSON.stringify({ newOwnerUsername: newHostName }) });
-                this.showNotification(`转移房间所有权 (API 未实现): ${this.roomNameToTransfer} -> ${newHostName}`, 'info');
-
-                // Frontend optimistic update (or update after successful API call)
-                const myRoomIndex = AppState.myRooms.findIndex(r => r.id === roomId && r.ownerName === AppState.currentUser.name);
+                this.showNotification(`转移房间 '${this.roomNameToTransfer}' 所有权给 '${newHostName}'. (后端API待实现)`, 'info');
+                AppState.myRooms = AppState.myRooms.filter(r => r.id !== roomId);
                 const allRoom = AppState.allRooms.find(r => r.id === roomId);
-
-                if (myRoomIndex !== -1) { // If it was in "My Rooms"
-                    AppState.myRooms.splice(myRoomIndex, 1);
-                }
                 if (allRoom) {
-                    allRoom.creator = newHostName; // Update creator in public list
-                    allRoom.status = 'offline'; // Typically, ownership transfer might reset status
+                    allRoom.creator = newHostName;
+                    allRoom.status = 'offline';
                     allRoom.audienceCount = 0;
                 }
 
                 this.renderMyRooms();
                 this.renderAllRooms();
+
+                // TODO: 实现后端 API 调用以真正转移房间所有权
+            }
+
+            async refreshRoomsList() {
+                const refreshBtn = document.getElementById('refresh-rooms-btn');
+                const refreshIcon = refreshBtn?.querySelector('i');
+
+                if (refreshBtn) {
+                    refreshBtn.disabled = true;
+                    refreshBtn.classList.add('opacity-70');
+                }
+                if (refreshIcon) {
+                    refreshIcon.classList.add('fa-spin');
+                }
+
+                try {
+                    await this._fetchAndProcessRoomsFromServer();
+                    AppState.allRoomsCurrentPage = 1;
+                    this.renderAllRooms();
+                    this.showNotification('房间列表已刷新', 'success');
+                } catch (error) {
+                    this.showNotification('刷新房间列表失败，请稍后再试', 'error');
+                    console.error('Error refreshing rooms:', error);
+                } finally {
+                    if (refreshBtn) {
+                        refreshBtn.disabled = false;
+                        refreshBtn.classList.remove('opacity-70');
+                    }
+                    if (refreshIcon) {
+                        refreshIcon.classList.remove('fa-spin');
+                    }
+                }
+            }
+
+            async refreshMyRooms() {
+                const refreshBtn = document.getElementById('refresh-my-rooms-btn');
+                const refreshIcon = refreshBtn?.querySelector('i');
+
+                if (refreshBtn) {
+                    refreshBtn.disabled = true;
+                    refreshBtn.classList.add('opacity-70');
+                }
+                if (refreshIcon) {
+                    refreshIcon.classList.add('fa-spin');
+                }
+
+                try {
+                    await this._fetchAndProcessRoomsFromServer();
+                    AppState.myRoomsCurrentPage = 1;
+                    this.renderMyRooms();
+                    this.showNotification('我的房间列表已刷新', 'success');
+                } catch (error) {
+                    this.showNotification('刷新我的房间列表失败，请稍后再试', 'error');
+                    console.error('Error refreshing my rooms:', error);
+                } finally {
+                    if (refreshBtn) {
+                        refreshBtn.disabled = false;
+                        refreshBtn.classList.remove('opacity-70');
+                    }
+                    if (refreshIcon) {
+                        refreshIcon.classList.remove('fa-spin');
+                    }
+                }
             }
 
 
@@ -902,18 +951,13 @@
                     this.showNotification('请输入分享代码', 'error');
                     return;
                 }
-                //TODO: Backend API call to validate shareCode and get room details/join. Endpoint not specified.
-                // Example: const roomData = await fetchAPI(`/chat/join/${shareCode}`);
-                // Then navigate or handle: window.location.href = roomData.actual_room_url;
-                this.showNotification('正在加入房间 (API 未实现)...', 'info');
-                // setTimeout(() => {
-                //     window.location.href = `/${shareCode.trim()}`; // Placeholder navigation
-                // }, 500);
+                this.showNotification(`通过代码加入房间 ${shareCode.trim()}...`, 'info');
+                window.location.href = `/share/${shareCode.trim()}`;
             }
 
 
             copyShareLink(roomId, buttonElement) {
-                const shareLink = `${window.location.origin}/${roomId}`;
+                const shareLink = `${window.location.origin}/share/${roomId}`;
                 const originalButtonHTML = buttonElement.innerHTML;
                 const copiedHTML = `<i class="fas fa-check mr-1"></i>已复制`;
 
@@ -1014,6 +1058,20 @@
                     filterSelect.addEventListener('change', () => {
                         AppState.allRoomsCurrentPage = 1;
                         this.renderAllRooms();
+                    });
+                }
+
+                const refreshRoomsBtn = document.getElementById('refresh-rooms-btn');
+                if (refreshRoomsBtn) {
+                    refreshRoomsBtn.addEventListener('click', () => {
+                        this.refreshRoomsList();
+                    });
+                }
+
+                const refreshMyRoomsBtn = document.getElementById('refresh-my-rooms-btn');
+                if (refreshMyRoomsBtn) {
+                    refreshMyRoomsBtn.addEventListener('click', () => {
+                        this.refreshMyRooms();
                     });
                 }
 
@@ -1195,8 +1253,11 @@
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            window.themeManager = new ThemeManager(); // This will also fetch user profile
-            window.roomManager = new RoomManager(); // This will fetch rooms data after user profile is available (implicitly via AppState.currentUser)
+            window.themeManager = new ThemeManager();
+            await window.themeManager.init();
+
+            window.roomManager = new RoomManager();
+            await window.roomManager.init();
         });
     </script>
 </body>
