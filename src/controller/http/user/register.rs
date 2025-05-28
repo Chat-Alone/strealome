@@ -24,11 +24,6 @@ impl From<PostRequest> for user::RegisterParam {
     }
 }
 
-async fn get() -> AxumResponse {
-    let str = unwrap!(read_to_string("frontend/register.html").await);
-    Html(str).into_response()
-}
-
 async fn post(State(state): State<AppState>, Json(param): Json<PostRequest>) -> Response {
     let param = param.into();
     let user = user::handle_register(state.repository, param).await;
@@ -40,5 +35,5 @@ async fn post(State(state): State<AppState>, Json(param): Json<PostRequest>) -> 
 }
 
 pub fn route(path: &str) -> Router<AppState> { 
-    Router::new().route(path, routing::get(get).post(post))
+    Router::new().route(path, routing::post(post))
 }

@@ -5,7 +5,7 @@ use super::{AppState, Jwt, Response, Error};
 
 pub fn route(path: &str, app_state: AppState) -> Router {
     let inner = Router::new()
-        .merge(chat::route("/"))
+        .merge(chat::route("/chat"))
         .with_state(app_state);
 
     if path == "/" {

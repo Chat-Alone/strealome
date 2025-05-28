@@ -1,13 +1,11 @@
 use serde::{Deserialize, Serialize};
-use tokio::fs::read_to_string;
 
-use axum::Json;
+use axum::{Json, routing};
 use axum::extract::State;
 use axum::http::{HeaderValue, header::SET_COOKIE};
-use axum::response::{Html, IntoResponse, Response as AxumResponse};
+use axum::response::{IntoResponse, Response as AxumResponse};
 
-use super::{Jwt, AppState, Error, Response};
-use crate::{unwrap};
+use super::{Jwt, AppState, Response};
 use crate::service::user;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -28,19 +26,6 @@ impl From<PostRequest> for user::LoginParam {
 #[derive(Serialize, Deserialize, Debug)]
 struct PostResponse {
     pub token: String,
-}
-
-
-async fn get(jwt: Option<Jwt>, State(state): State<AppState>) -> AxumResponse {
-    if let Some(jwt) = jwt {
-        let user = state.repository.find_by_id(jwt.sub).await;
-        if let Some(user) = user {
-            let str = unwrap!(read_to_string("frontend/index.html").await);
-            return Html(str).into_response();
-        }
-    }
-    let str = unwrap!(read_to_string("frontend/login.html").await);
-    Html(str).into_response()
 }
 
 async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> AxumResponse {
@@ -68,7 +53,8 @@ async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> Ax
 
 
 pub fn route(path: &str) -> axum::Router<AppState> {
-    axum::Router::new().route(path, axum::routing::get(get).post(post))
+    axum::Router::new()
+        .route(path, routing::post(post))
 }
 
 // async fn post(jwt: Option<Jwt>, State(state): State<AppState>, Json(req): Json<PostRequest>) -> Response {

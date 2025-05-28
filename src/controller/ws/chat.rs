@@ -15,9 +15,9 @@ async fn upgrade(
 
     ws.on_upgrade(
         async move |socket| {
-            match chat::handle_websocket(socket, room_link, jwt.sub, state.repository).await {
-                Err(e) => eprintln!("Error: {}", e),
-                Ok(_) => {}
+            if let Err(e) = 
+                chat::handle_websocket(socket, room_link, jwt.sub, state.repository).await {
+                eprintln!("Error: {}", e)
             }
         }
     )

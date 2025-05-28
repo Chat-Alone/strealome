@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum::response::{Html, IntoResponse, Response as AxumResponse};
 use tokio::fs::read_to_string;
 
-use super::{Jwt, AppState, Error};
+use crate::controller::http::{Jwt, AppState, Error};
 use crate::unwrap;
 
 async fn get(jwt: Option<Jwt>, State(state): State<AppState>) -> AxumResponse {
