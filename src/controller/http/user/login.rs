@@ -12,6 +12,7 @@ use crate::service::user;
 struct PostRequest {
     username: String,
     password: String,
+    remember: bool,
 }
 
 impl From<PostRequest> for user::LoginParam {
@@ -29,7 +30,7 @@ struct PostResponse {
 }
 
 async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> AxumResponse {
-    
+    let remember = req.remember;
     match user::handle_login(state.repository, req.into()).await {
         Ok(user) => {
             let jwt = Jwt::http(user.id, state.jwt_exp_duration);
@@ -38,9 +39,10 @@ async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> Ax
             let mut res = Response::success(Some(serde_json::to_value(&post_res).unwrap())).into_response();
             
             if state.jwt_auth_method.is_cookie() {
+                let duration = if remember { state.jwt_exp_dur_long } else { state.jwt_exp_duration };
                 let cookie = format!(
                     "token={}; Max-Age={}; Path=/; HttpOnly; Secure; SameSite=Strict",
-                    &post_res.token, state.jwt_exp_duration.num_seconds()
+                    &post_res.token, duration.num_seconds()
                 );
                 res.headers_mut()
                     .insert(SET_COOKIE, HeaderValue::from_str(&cookie).unwrap());

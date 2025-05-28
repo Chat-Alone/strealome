@@ -32,6 +32,7 @@ pub struct AppState {
     pub jwt_auth_method: JwtAuthMethod,
     pub jwt_secret: String,
     pub jwt_exp_duration: Duration,
+    pub jwt_exp_dur_long: Duration,
     pub jwt_domain: JwtDomain,
 }
 
@@ -40,6 +41,7 @@ pub async fn listen<A: ToSocketAddrs>(
     repo: Arc<dyn Repository>,
     jwt_secret: String,
     jwt_exp_duration: Duration,
+    jwt_exp_dur_long: Duration
 ) -> JoinHandle<Result<(), String>> {
     
     let http_state = AppState {
@@ -47,6 +49,7 @@ pub async fn listen<A: ToSocketAddrs>(
         jwt_auth_method: JwtAuthMethod::Cookie,
         jwt_secret: jwt_secret.clone(),
         jwt_exp_duration,
+        jwt_exp_dur_long,
         jwt_domain: JwtDomain::Http,
     };
     
@@ -55,6 +58,7 @@ pub async fn listen<A: ToSocketAddrs>(
         jwt_auth_method: JwtAuthMethod::Headers,
         jwt_secret,
         jwt_exp_duration,
+        jwt_exp_dur_long,
         jwt_domain: JwtDomain::WebSocketChat,
     };
     
