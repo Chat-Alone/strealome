@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicI32;
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::sync::RwLock;
 
@@ -52,7 +52,7 @@ impl ChatMessage {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
 pub enum ChatMessageContent {
     #[serde(rename = "text")]

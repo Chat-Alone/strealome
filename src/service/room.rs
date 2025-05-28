@@ -22,6 +22,8 @@ pub enum RoomError {
     RoomNotFound,
     #[error("User not in room")]
     UserNotFound,
+    #[error("Internal Error")]
+    InternalError,
 }
 
 impl From<RoomError> for Response {
@@ -61,6 +63,10 @@ impl Room {
         self.created_at
     }
     
+    pub fn host_id(&self) -> i32 {
+        self.host_id
+    }
+    
     pub async fn join(&self, user_id: i32, tx: mpsc::Sender<Arc<ChatMessage>>) {
         self.users.insert(user_id, tx);
     }
@@ -69,7 +75,8 @@ impl Room {
         if !self.contains_user(author_id) { return Err(RoomError::UserNotFound) }
         let msg = Arc::new(ChatMessage::new(author_id, self.share_link(), content));
         for item in self.users.iter() {
-            item.value().send(msg.clone()).await.unwrap();
+            if item.key() == &author_id { continue }
+            item.value().send(msg.clone()).await.map_err(|_| RoomError::InternalError)?;
         }
         
         Ok(())
@@ -78,19 +85,19 @@ impl Room {
 
 #[derive(Clone, Debug)]
 pub struct Rooms {
-    rooms: DashMap<String, Room>, // link -> Room
-    hosts: DashMap<i32, Vec<String>>, // host_id -> link(s)
+    rooms: Arc<DashMap<String, Room>>, // link -> Room
+    hosts: Arc<DashMap<i32, Vec<String>>>, // host_id -> link(s)
 }
 
 impl Rooms {
     fn new() -> Self {
         Self {
-            rooms: DashMap::new(),
-            hosts: DashMap::new(),
+            rooms: Arc::new(DashMap::new()),
+            hosts: Arc::new(DashMap::new()),
         }
     }
 
-    pub fn create(&self, host_id: i32) -> Room {
+    fn create(&self, host_id: i32) -> Room {
 
         let mut res = self.hosts.entry(host_id).or_insert(vec![]);
         let new_link = loop {
@@ -101,10 +108,14 @@ impl Rooms {
         };
         
         res.push(new_link.clone());
+        drop(res);
         
         let new_room = Room::new(host_id, new_link.clone());
         self.rooms.insert(new_link, new_room.clone());
-
+        
+        println!("CurrRooms: {:?}", self.rooms);
+        println!("CurrHosts: {:?}", self.hosts);
+        
         new_room
     }
 
@@ -112,7 +123,14 @@ impl Rooms {
         self.rooms.get(room_link).map(|r| r.clone()).ok_or(RoomError::RoomNotFound)
     }
     
-    pub fn related_rooms(&self, user_id: i32) -> Vec<Room> {
+    fn hosted_rooms(&self, host_id: i32) -> Vec<Room> {
+        self.hosts.get(&host_id)
+            .map(|r| r.value().iter()
+                    .filter_map(|l| self.get_room_by_link(l).ok()).collect()
+            ).unwrap_or(vec![])
+    }
+    
+    fn related_rooms(&self, user_id: i32) -> Vec<Room> {
         let mut ret = vec![];
         for item in self.rooms.iter() {
             if item.value().contains_user(user_id) {
@@ -134,6 +152,16 @@ pub fn verify_room(room_link: &str) -> Result<(), RoomError> {
 
 pub fn get_room_by_link(room_link: &str) -> Result<Room, RoomError> {
     rooms().get_room_by_link(room_link)
+}
+
+pub fn related_to(user_id: i32) -> Vec<Room> {
+    let mut ret = rooms().related_rooms(user_id);
+    ret.extend(rooms().hosted_rooms(user_id));
+    ret
+}
+
+pub fn create_host_by(host_id: i32) -> Room {
+    rooms().create(host_id)
 }
 
 fn gen_rand_string(len: usize) -> String {

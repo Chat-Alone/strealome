@@ -1,23 +1,17 @@
-use axum::{Router};
-use super::{AppState, Jwt, Error, Response};
-
-mod register;
 mod index;
-mod login;
-mod logout;
-mod profile;
-mod gateway;
 mod room;
 mod chat;
+mod user;
+
+use axum::Router;
+use super::{AppState, Error, Jwt, Response};
 
 pub fn route(path: &str, app_state: AppState) -> Router {
     let inner = Router::new()
         .merge(index::route("/"))
-        .merge(login::route("/login"))
-        .merge(logout::route("/logout"))
-        .merge(register::route("/register"))
-        .merge(profile::route("/user/profile"))
-        .merge(gateway::route("/chat/gateway"))
+        .merge(chat::route("/chat"))
+        .merge(user::route("/user"))
+        .merge(room::route("/room"))
         .with_state(app_state);
     
     if path == "/" {

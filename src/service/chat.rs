@@ -22,6 +22,9 @@ pub enum ChatError {
     #[error("Socket error")]
     SocketError(#[from] axum::Error),
     
+    #[error("Internal error")]
+    InternalError,
+    
     #[error("Service error")]
     ServiceError(#[from] super::Error),
 }
@@ -43,16 +46,30 @@ pub async fn handle_websocket(
     let room = room::get_room_by_link(&room_link)?;
     room.join(user_id, tx.clone()).await;
     
+    println!("CurrRooms: {:?}", room::rooms());
+    
+    let _tx = tx.clone();
     let recv_fut = async move {
         while let Some(Ok(msg)) = recver.next().await {
-            println!("{msg:?}");
+            println!("recv: {:?}", msg);
+            if let Message::Text(text) = msg {
+                if let Ok(content) = serde_json::from_str::<ChatMessageContent>(&text) {
+                    room.sync_message(user.id, content).await?;
+                } else {
+                    // TODO! 
+                    println!("bad message: {}", text);
+                    _tx.send(Arc::new(ChatMessage::new(user.id, room_link.clone(), 
+                        ChatMessageContent::Text("发的不对你这个".to_string())))
+                    ).await.map_err(|_| ChatError::InternalError)?;
+                }
+            }
         }
         Ok(())
     };
     
     let send_fut = async move {
         while let Some(msg) = rx.recv().await {
-            if msg.author() == user.id { continue; }
+            println!("sending: {:?}", msg);
             sender.send(msg.serialize().await.into()).await.map_err(|e| ChatError::from(e))?;
         }
         Ok(())
@@ -73,11 +90,11 @@ pub async fn handle_websocket(
     Ok(())
 }
 
-use super::room::{rooms, Room};
+use super::room::{Room};
 
 pub async fn create_room(repo: Arc<dyn Repository>, user_id: i32) -> Result<Room, ChatError> {
     let user = user::get_user_by_id(repo, user_id).await?;
-    Ok(rooms().create(user.id))
+    Ok(room::create_host_by(user.id))
 }
 
 pub async fn send_message(repo: Arc<dyn Repository>, user_id: i32, room_link: &str, content: String) -> Result<(), ChatError> {

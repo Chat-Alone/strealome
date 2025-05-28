@@ -2,22 +2,24 @@ use axum::extract::State;
 use axum::Router;
 use serde::Serialize;
 
-use crate::service::user;
-use super::super::{Jwt, AppState, Response};
+use crate::service::{user, room};
+use super::{Jwt, AppState, Response, RoomResp};
 
 #[derive(Serialize)]
 struct GetResponse {
-    gateway_token: String,
+    related_rooms: Vec<RoomResp>,
 }
 
+// get all related rooms
 async fn get(jwt: Jwt, State(state): State<AppState>) -> Response {
     let user = user::get_user_by_id(state.repository, jwt.sub).await;
     if let Err(e) = user { return e.into() }
     let user = user.unwrap();
-
-    let gateway_token = Jwt::chat_ws(user.id, state.jwt_exp_duration);
-    let gateway_token = gateway_token.encode(&state.jwt_secret).unwrap_or("wtf?".to_string());
-    Response::success(Some(GetResponse { gateway_token }))
+    
+    let related_rooms = room::related_to(user.id)
+            .into_iter().map(|r| RoomResp::from(r, user.id)).collect();
+    
+    Response::success(Some(GetResponse { related_rooms }))
 }
 
 pub fn route(path: &str) -> Router<AppState> {
