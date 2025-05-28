@@ -913,7 +913,7 @@
 
 
             copyShareLink(roomId, buttonElement) {
-                const shareLink = `${window.location.origin}/${roomId}`;
+                const shareLink = `${window.location.origin}/share/${roomId}`;
                 const originalButtonHTML = buttonElement.innerHTML;
                 const copiedHTML = `<i class="fas fa-check mr-1"></i>已复制`;
 
