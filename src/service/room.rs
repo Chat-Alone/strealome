@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::sync::{Arc, LazyLock, RwLock};
-use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
 use std::time::Duration;
 use chrono::{DateTime, Utc};
 use rand::RngCore;
@@ -28,18 +28,22 @@ pub enum RoomError {
     RoomNotFound,
     #[error("Room is empty")]
     RoomEmpty,
+    #[error("Room is not empty")]
+    RoomNotEmpty,
     #[error("Room is released")]
     RoomReleased,
     #[error("Room is not releasing")]
     RoomNotReleasing,
     #[error("User not in room")]
-    UserNotFound,
+    UserNotInRoom,
     #[error("User already in room")]
     UserAlreadyInRoom,
+    #[error("User already hosting")]
+    UserAlreadyHosting,
     #[error("{0}")]
     UserError(#[from] user::UserError),
     #[error("Internal Error")]
-    InternalError,
+    InternalError(String),
 }
 
 impl From<RoomError> for Response {
@@ -64,17 +68,17 @@ impl Room {
             host_id: Arc::new(AtomicI32::new(host_id)),
             link: Arc::new(link.clone()),
             name: Arc::new(RwLock::new(name)),
-            users: Arc::new(DashMap::new()),
+            users: Default::default(),
             created_at: Utc::now(),
         }
     }
     
     pub fn users(&self) -> Vec<i32> {
-        self.users.iter().map(|x| x.key().clone()).collect()
+        self.users.iter().map(|x| *x.key()).collect()
     }
 
     pub fn contains_user(&self, user_id: i32) -> Result<(), RoomError> {
-        self.users.contains_key(&user_id).then_some(()).ok_or(RoomError::UserNotFound)
+        self.users.contains_key(&user_id).then_some(()).ok_or(RoomError::UserNotInRoom)
     }
 
     pub fn share_link(&self) -> String {
@@ -90,12 +94,12 @@ impl Room {
     }
     
     pub fn host_id(&self) -> i32 {
-        self.host_id.load(Ordering::Relaxed)
+        self.host_id.load(Ordering::SeqCst)
     }
     
     pub async fn host_name(&self, repo: Arc<dyn Repository>) -> Result<String, RoomError> {
         let host = user::get_user_by_id(repo, self.host_id()).await?;
-        Ok(host.name)
+        Ok(host.name.clone())
     }
     
     pub fn name(&self) -> String {
@@ -103,24 +107,30 @@ impl Room {
     }
     
     pub fn set_host(&self, host_id: i32) {
-        self.host_id.store(host_id, Ordering::Relaxed);
+        self.host_id.store(host_id, Ordering::SeqCst);
     }
      
     async fn join(&self, user_id: i32, tx: mpsc::Sender<Arc<ChatSignal>>) -> Result<(), RoomError> {
-        if self.contains_user(user_id).is_ok() {
-            return Err(RoomError::UserAlreadyInRoom)
+        match self.users.entry(user_id) {
+            Entry::Vacant(entry) => {
+                entry.insert(tx);
+            }
+            Entry::Occupied(_) => return Err(RoomError::UserAlreadyInRoom)
         }
         
-        self.users.insert(user_id, tx);
         let event = ChatEvent::join(user_id, self.user_len());
         self.sync_event(user_id, event).await?;
         Ok(())
     }
     
     async fn leave(&self, user_id: i32) -> Result<(), RoomError> {
-        self.contains_user(user_id)?;
+        match self.users.entry(user_id) {
+            Entry::Occupied(entry) => {
+                entry.remove();
+            }
+            Entry::Vacant(_) => return Err(RoomError::UserNotInRoom)
+        }
         
-        self.users.remove(&user_id);
         let event = ChatEvent::leave(user_id, self.user_len());
         self.sync_event(user_id, event).await?;
         Ok(())
@@ -129,9 +139,18 @@ impl Room {
     pub async fn sync_signal(&self, author_id: i32, signal: ChatSignal) -> Result<(), RoomError> {
         self.contains_user(author_id)?;
         let msg = Arc::new(signal);
+        
+        let mut errors = vec![];
         for item in self.users.iter() {
             if item.key() == &author_id { continue }
-            item.value().send(msg.clone()).await.map_err(|_| RoomError::InternalError)?;
+            let res = item.value().send(msg.clone()).await;
+            if res.is_err() {
+                errors.push((res.err().unwrap(), *item.key()));
+            }
+        }
+        
+        if !errors.is_empty() {
+            return Err(RoomError::InternalError(format!("loss {}/{} packs", errors.len(), self.user_len())))
         }
 
         Ok(())
@@ -154,7 +173,7 @@ pub struct Rooms {
     rooms: Arc<DashMap<String, Room>>, // link -> Room
     // release_timers: Arc<DashMap<String, AtomicI64>>, // link -> release_time
     release_tasks: Arc<DashMap<String, JoinHandle<()>>>,
-    hosts: Arc<DashMap<i32, Vec<String>>>, // host_id -> link(s)
+    hosts: Arc<DashMap<i32, Arc<RwLock<Vec<String>>>>>, // host_id -> link(s)
 }
 
 impl Rooms {
@@ -174,12 +193,10 @@ impl Rooms {
             }
         };
         
-        self.hosts.entry(host_id).or_default().push(new_link.clone());
+        self.hosts.entry(host_id).or_default().write().unwrap().push(new_link.clone());
         
         let new_room = Room::new(host_id, room_name, new_link.clone());
         self.rooms.insert(new_link.clone(), new_room.clone());
-        println!("CurrRooms: {:?}", self.rooms);
-        println!("CurrHosts: {:?}", self.hosts);
         
         new_room
     }
@@ -190,24 +207,35 @@ impl Rooms {
     /// 
     /// **make sure room_link is not a ref of a Vec<String> in self.hosts**
     fn change_host(&self, room_link: &str, new_host_id: i32) -> Result<i32, RoomError> {
-        let room = self.get_room_by_link(room_link)?;
-        let old_host_id = room.host_id();
-        if new_host_id == old_host_id { return Ok(old_host_id) }
-        room.contains_user(new_host_id)?;
+        let ret = RwLock::new(Ok(new_host_id));
+        
+        self.rooms.entry(room_link.to_string()).and_modify(|room| {
+            let old_host_id = room.host_id.load(Ordering::SeqCst);
+            
+            if new_host_id == old_host_id {
+                *ret.write().unwrap() = Err(RoomError::UserAlreadyHosting);
+                return
+            }
+            if room.contains_user(new_host_id).is_err() {
+                *ret.write().unwrap() = Err(RoomError::UserNotInRoom);
+                return
+            }
+            
+            // remove old host
+            self.hosts.entry(old_host_id).and_modify(|rooms| {
+                rooms.write().unwrap().retain(|r| r != room_link);
+            });
 
-        // remove old host
-        self.hosts.entry(old_host_id).and_modify(|rooms| {
-            rooms.retain(|r| r != room_link);
+            // push new host
+            self.hosts.entry(new_host_id).and_modify(|rooms| {
+                rooms.write().unwrap().push(room_link.to_string());
+            }).or_insert_with(|| Arc::new(RwLock::new(vec![room_link.to_string()])));
+            
+            room.set_host(new_host_id);
         });
-        
-        // push new host
-        self.hosts.entry(new_host_id).and_modify(|rooms| {
-            rooms.push(room_link.to_string());
-        }).or_insert_with(|| vec![room_link.to_string()]);
-        
-        room.set_host(new_host_id);
 
-        Ok(new_host_id)
+
+        ret.into_inner().unwrap()
     }
 
     /// **make sure room_link is not a ref of a Vec<String> in self.hosts**
@@ -235,7 +263,7 @@ impl Rooms {
     
     fn hosted_rooms(&self, host_id: i32) -> Vec<Room> {
         let rooms = self.hosts.get(&host_id)
-            .map(|r| r.clone()).unwrap_or_default();
+            .map(|r| r.read().unwrap().clone()).unwrap_or_default();
         
         rooms.into_iter()
             .filter_map(|l| self.get_room_by_link(&l).ok()).collect()
@@ -276,22 +304,27 @@ async fn start_release_task(room_link: String) -> Result<(), RoomError> {
         return Err(RoomError::RoomNotFound)
     }
     
-    if let Entry::Occupied(entry) = rooms().release_tasks.entry(room_link.clone()) {
-        if !entry.get().is_finished() {
-            entry.remove();
-            return Err(RoomError::RoomReleased)
+    if let Entry::Occupied(room) = rooms().rooms.entry(room_link.clone()) {
+        if room.get().user_len() > 0 {
+            return Err(RoomError::RoomNotEmpty)
         }
-        entry.remove().abort();
+
+        match rooms().release_tasks.entry(room_link.clone()) {
+            Entry::Vacant(entry) => {
+                entry.insert(tokio::spawn(async move {
+                    tokio::time::sleep(ROOM_RELEASE_DURATION).await;
+                    rooms().rooms.remove(&room_link);
+                }));
+            }
+            Entry::Occupied(entry) => {
+                if entry.get().is_finished() {
+                    entry.remove().abort();
+                    return Err(RoomError::RoomReleased)
+                }
+            }
+        }
     }
-
-    rooms().release_tasks.insert(
-        room_link.clone(),
-        tokio::spawn(async move {
-            tokio::time::sleep(ROOM_RELEASE_DURATION).await;
-            rooms().rooms.remove(&room_link);
-        })
-    );
-
+    
     Ok(())
 }
 
@@ -300,16 +333,25 @@ async fn stop_release_task(room_link: String) -> Result<(), RoomError> {
         return Err(RoomError::RoomNotFound)
     }
 
-    if let Entry::Occupied(entry) = rooms().release_tasks.entry(room_link) {
-        if !entry.get().is_finished() {
-            entry.remove();
-            return Err(RoomError::RoomReleased)
+    if let Entry::Occupied(room) = rooms().rooms.entry(room_link.clone()) {
+        if room.get().user_len() == 0 {
+            return Err(RoomError::RoomEmpty)
         }
-        entry.remove().abort();
-        return Ok(())
-    }
+
+        match rooms().release_tasks.entry(room_link.clone()) {
+            Entry::Vacant(_) => {
+                return Err(RoomError::RoomNotReleasing)
+            }
+            Entry::Occupied(entry) => {
+                if !entry.get().is_finished() {
+                    return Err(RoomError::RoomReleased)
+                }
+                entry.remove().abort();
+            }
+        };
+    };
     
-    Err(RoomError::RoomNotReleasing)
+    Ok(())
 }
 
 pub async fn join_room(room_link: &str, user_id: i32, tx: mpsc::Sender<Arc<ChatSignal>>) -> Result<(), RoomError> {
@@ -344,3 +386,174 @@ fn gen_rand_string(len: usize) -> String {
         .map(|&b| CHARS[(b % CHARS.len() as u8) as usize] as char)
         .collect()
 }
+
+
+
+#[cfg(test)]
+mod stress_tests {
+    use super::*;
+    use tokio::sync::mpsc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use tokio::task;
+
+    const CONCURRENT_USERS: usize = 100;
+    static ROOM_CREATION_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+    // 测试并发创建房间
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn test_concurrent_room_creation() {
+        let tasks: Vec<_> = (0..CONCURRENT_USERS)
+            .map(|i| {
+                task::spawn(async move {
+                    let room = create_host_by(i as i32, format!("Room_{}", i));
+                    ROOM_CREATION_COUNT.fetch_add(1, Ordering::SeqCst);
+                    room
+                })
+            })
+            .collect();
+
+        let mut created_rooms = 0;
+        for task in tasks {
+            let _ = task.await.unwrap();
+            created_rooms += 1;
+        }
+        
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        assert_eq!(created_rooms, CONCURRENT_USERS);
+        assert_eq!(rooms().rooms.len(), CONCURRENT_USERS);
+    }
+    
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_concurrent_join() {
+        let room = create_host_by(1, "StressRoom".to_string());
+        let join_tasks: Vec<_> = (0..CONCURRENT_USERS)
+            .map(|i| {
+                let room = room.clone();
+                let (tx, mut rx) = mpsc::channel(8);
+                task::spawn(async move {
+                    while let Some(msg) = rx.recv().await {
+                        println!("Received message: {:?}", msg)
+                    }
+                });
+                task::spawn(async move {
+                    // if let Err(e) = room.join(i as i32, tx).await {
+                    //     println!("Error joining room: {:?}", e);
+                    // }
+                    room.join(i as i32, tx).await.unwrap()
+                })
+            })
+            .collect();
+        
+        for task in join_tasks {
+            task.await.unwrap();
+        }
+        
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        assert_eq!(room.user_len(), CONCURRENT_USERS);
+    }
+
+    // 测试并发加入/离开房间
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn test_concurrent_join_leave() {
+        let room = create_host_by(1, "StressRoom".to_string());
+        
+        let err_cnt = Arc::new(AtomicUsize::new(0));
+        
+        let join_tasks: Vec<_> = (0..CONCURRENT_USERS)
+            .map(|i| {
+                let room = room.clone();
+                let (tx, mut rx) = mpsc::channel(32);
+                let err_cnt = err_cnt.clone();
+                task::spawn(async move {
+                    while let Some(msg) = rx.recv().await {
+                        println!("Received message: {:?}", msg);
+                    }
+                });
+                task::spawn(async move {
+                    if let Err(e) = room.join(i as i32, tx).await {
+                        println!("Error joining room: {:?}", e);
+                        err_cnt.fetch_add(1, Ordering::SeqCst);
+                    }
+                    if let Err(e) = room.leave(i as i32).await {
+                        println!("Error leaving room: {:?}", e);
+                        err_cnt.fetch_add(1, Ordering::SeqCst);
+                    }
+                })
+            })
+            .collect();
+
+        for task in join_tasks {
+            task.await.unwrap();
+        }
+        
+        println!("Error count: {} out of {}", err_cnt.load(Ordering::SeqCst), CONCURRENT_USERS);
+
+        assert_eq!(room.user_len(), 0);
+        assert!(room.users().is_empty());
+    }
+
+    // 测试主持人更换压力
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn test_host_transfer_stress() {
+        let room = create_host_by(1, "HostTransferRoom".to_string());
+
+        // 先加入多个用户
+        for i in 2..=CONCURRENT_USERS as i32 {
+            let (tx, mut rx) = mpsc::channel(32);
+            tokio::spawn(async move {
+                if let Some(msg) = rx.recv().await {
+                    println!("Received message: {:?}", msg)
+                }
+            });
+            room.join(i, tx).await;
+        }
+        
+        let share_link = room.share_link();
+
+        // 并发更换主持人
+        let transfer_tasks: Vec<_> = (2..=CONCURRENT_USERS as i32)
+            .map(|new_host| {
+                let share_link = share_link.clone();
+                task::spawn(async move {
+                    rooms().change_host(&share_link, new_host).expect("TODO: panic message");
+                })
+            })
+            .collect();
+
+        for task in transfer_tasks {
+            task.await.unwrap();
+        }
+
+        // 验证最终主持人存在且有效
+        let final_host = room.host_id();
+        println!("Final host: {}", final_host);
+        assert!(final_host >= 1 && final_host <= CONCURRENT_USERS as i32);
+        assert!(room.users().contains(&final_host));
+    }
+
+    // 测试房间自动释放压力
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    async fn test_room_auto_release_stress() {
+        let room = create_host_by(1, "AutoReleaseRoom".to_string());
+        let link = room.share_link();
+
+        // 并发触发释放
+        let release_tasks: Vec<_> = (0..CONCURRENT_USERS)
+            .map(|_| {
+                let link = link.clone();
+                task::spawn(async move {
+                    start_release_task(link.clone()).await.unwrap();
+                })
+            })
+            .collect();
+
+        for task in release_tasks {
+            task.await.unwrap();
+        }
+
+        // 验证房间最终状态
+        tokio::time::sleep(ROOM_RELEASE_DURATION + Duration::from_secs(1)).await;
+        assert!(get_room_by_link(&link).is_err());
+    }
+}
+
