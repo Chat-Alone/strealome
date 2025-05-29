@@ -2,7 +2,6 @@ mod controller;
 mod model;
 mod repository;
 mod service;
-mod signal;
 
 use std::sync::{Arc};
 use chrono::Duration;

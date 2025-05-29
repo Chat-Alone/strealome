@@ -4,16 +4,12 @@ mod event;
 
 pub use handshake::{HandShake, HandShakeACK};
 pub use ping::{Ping, Pong};
-pub use event::{Event};
+pub use event::{Event, Message};
 
 use serde::{Deserialize, Serialize};
 use super::{Author};
 
 use std::sync::atomic::AtomicI32;
-static ID: AtomicI32 = AtomicI32::new(0);
-pub fn gen_id() -> i32 {
-    ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Signal {
@@ -25,16 +21,16 @@ pub struct Signal {
 }
 
 impl Signal {
-    pub fn new(author_id: Author, payload: Payload) -> Self {
+    pub fn new(id: i32, author_id: Author, payload: Payload) -> Self {
         Self {
-            id: gen_id(),
+            id,
             author_id,
             payload,
         }
     }
     
-    pub fn event(author_id: Author, event: Event) -> Self {
-        Self::new(author_id, Payload::Event(event))
+    pub fn event(id: i32, author_id: Author, event: Event) -> Self {
+        Self::new(id, author_id, Payload::Event(event))
     }
 }
 

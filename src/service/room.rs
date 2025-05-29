@@ -1,12 +1,12 @@
 use std::cell::RefCell;
 use std::sync::{Arc, LazyLock, RwLock};
 use std::sync::atomic::{AtomicI32, AtomicI64, Ordering};
-use chrono::{DateTime, Timelike, Utc};
+use chrono::{DateTime, Utc};
 use rand::RngCore;
 use tokio::sync::{mpsc};
 use dashmap::{DashMap};
 
-use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent};
+use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent, Message as ChatMessage};
 
 const ROOM_SHARE_LINK_LEN: usize = 8;
 const ROOM_RELEASE_DURATION_S: i64 = 15;
@@ -24,10 +24,14 @@ use crate::service::user;
 pub enum RoomError {
     #[error("Room not found")]
     RoomNotFound,
+    #[error("Room is empty")]
+    RoomEmpty,
     #[error("Room released")]
     RoomReleased,
     #[error("User not in room")]
     UserNotFound,
+    #[error("User already in room")]
+    UserAlreadyInRoom,
     #[error("{0}")]
     UserError(#[from] user::UserError),
     #[error("Internal Error")]
@@ -60,6 +64,10 @@ impl Room {
             created_at: Utc::now(),
         }
     }
+    
+    pub fn users(&self) -> Vec<i32> {
+        self.users.iter().map(|x| x.key().clone()).collect()
+    }
 
     pub fn contains_user(&self, user_id: i32) -> Result<(), RoomError> {
         self.users.contains_key(&user_id).then_some(()).ok_or(RoomError::UserNotFound)
@@ -89,15 +97,29 @@ impl Room {
     pub fn name(&self) -> String {
         self.name.read().unwrap().clone()
     }
+    
+    pub fn set_host(&self, host_id: i32) {
+        self.host_id.store(host_id, Ordering::Relaxed);
+    }
      
-    fn join(&self, user_id: i32, tx: mpsc::Sender<Arc<ChatSignal>>) {
+    async fn join(&self, user_id: i32, tx: mpsc::Sender<Arc<ChatSignal>>) -> Result<(), RoomError> {
+        if self.contains_user(user_id).is_ok() {
+            return Err(RoomError::UserAlreadyInRoom)
+        }
+        
         self.users.insert(user_id, tx);
-        // broadcast that a new user has joined
-        let msg = Arc::new(ChatEvent::join(user_id, self.share_link()));
+        let event = ChatEvent::join(user_id, self.user_len());
+        self.sync_event(user_id, event).await?;
+        Ok(())
     }
     
-    fn leave(&self, user_id: i32) {
+    async fn leave(&self, user_id: i32) -> Result<(), RoomError> {
+        self.contains_user(user_id)?;
+        
         self.users.remove(&user_id);
+        let event = ChatEvent::leave(user_id, self.user_len());
+        self.sync_event(user_id, event).await?;
+        Ok(())
     }
     
     pub async fn sync_signal(&self, author_id: i32, signal: ChatSignal) -> Result<(), RoomError> {
@@ -112,7 +134,8 @@ impl Room {
     }
     
     pub async fn sync_event(&self, author_id: i32, event: ChatEvent) -> Result<(), RoomError> { 
-        self.sync_signal(author_id, ChatSignal::event(author_id.into(), event)).await
+        // TODO: generate ID
+        self.sync_signal(author_id, ChatSignal::event(114514, author_id.into(), event)).await
     }
 }
 
@@ -139,8 +162,6 @@ impl Rooms {
     }
 
     fn create(&self, host_id: i32, room_name: String) -> Room {
-
-        let mut res = self.hosts.entry(host_id).or_default();
         let new_link = loop {
             let link = gen_rand_string(ROOM_SHARE_LINK_LEN);
             if !self.rooms.contains_key(&link) {
@@ -148,8 +169,7 @@ impl Rooms {
             }
         };
         
-        res.push(new_link.clone());
-        drop(res);
+        self.hosts.entry(host_id).or_default().push(new_link.clone());
         
         let new_room = Room::new(host_id, room_name, new_link.clone());
         let release_timer = AtomicI64::new(Utc::now().timestamp());
@@ -161,8 +181,60 @@ impl Rooms {
         
         new_room
     }
+    
+    fn update_timer(&mut self, room_link: &str) -> Result<(), RoomError> {
+        if let Some(timer) = self.release_timers.get(room_link) {
+            timer.store(Utc::now().timestamp(), Ordering::SeqCst);
+            Ok(())
+        } else {
+            Err(RoomError::RoomNotFound)
+        }
+    }
+    
+    /// return an error when:
+    /// 1. room_link is not in self.rooms
+    /// 2. new_host_id is not in the target room
+    /// 
+    /// **make sure room_link is not a ref of a Vec<String> in self.hosts**
+    fn change_host(&self, room_link: &str, new_host_id: i32) -> Result<i32, RoomError> {
+        let room = self.get_room_by_link(room_link)?;
+        let old_host_id = room.host_id();
+        if new_host_id == old_host_id { return Ok(old_host_id) }
+        room.contains_user(new_host_id)?;
 
-    // get room by link, if room is empty and expired, release room
+        // remove old host
+        self.hosts.entry(old_host_id).and_modify(|rooms| {
+            rooms.retain(|r| r != room_link);
+        });
+        
+        // push new host
+        self.hosts.entry(new_host_id).and_modify(|rooms| {
+            rooms.push(room_link.to_string());
+        }).or_insert_with(|| vec![room_link.to_string()]);
+        
+        room.set_host(new_host_id);
+
+        Ok(new_host_id)
+    }
+
+    /// **make sure room_link is not a ref of a Vec<String> in self.hosts**
+    fn find_next_host(&self, room_link: &str) -> Result<i32, RoomError> { 
+        let members = {
+            let room = self.get_room_by_link(room_link)?;
+            room.users()
+        };
+        for user_id in members {
+            if self.change_host(room_link, user_id).is_ok() {
+                return Ok(user_id);
+            }
+        }
+        
+        Err(RoomError::RoomEmpty)
+    }
+    
+    /// get room by link, if room is empty and expired, release room
+    /// 
+    /// **make sure room_link is not a ref from the Vec\<String\> in self.hosts**
     fn get_room_by_link(&self, room_link: &str) -> Result<Room, RoomError> {
         let room = self.rooms.get(room_link)
             .map(|r| r.clone()).ok_or(RoomError::RoomNotFound)?;
@@ -180,9 +252,9 @@ impl Rooms {
             println!("room removed");
             self.release_timers.remove(room_link);
             println!("timer removed");
-            if let Some(mut entry) = self.hosts.get_mut(&host_id) {
-                entry.value_mut().retain(|r| r != room_link);
-            }
+            self.hosts.entry(host_id).and_modify(|rooms| {
+                rooms.retain(|r| r != room_link);
+            });
             println!("hosts updated");
             return Err(RoomError::RoomReleased);
         };
@@ -193,7 +265,7 @@ impl Rooms {
     fn hosted_rooms(&self, host_id: i32) -> Vec<Room> {
         let rooms = self.hosts.get(&host_id)
             .map(|r| r.clone()).unwrap_or_default();
-
+        
         rooms.into_iter()
             .filter_map(|l| self.get_room_by_link(&l).ok()).collect()
     }
@@ -229,18 +301,25 @@ pub fn create_host_by(host_id: i32, name: String) -> Room {
 }
 
 pub async fn join_room(room_link: &str, user_id: i32, tx: mpsc::Sender<Arc<ChatSignal>>) -> Result<(), RoomError> {
-    if let Ok(room) = get_room_by_link(room_link) {
-        room.join(user_id, tx);
-    }
-
-    todo!()
+    let room = get_room_by_link(room_link)?;
+    room.join(user_id, tx).await
 }
 
 pub async fn leave_room(room_link: &str, user_id: i32) -> Result<(), RoomError> {
-    if let Ok(room) = get_room_by_link(room_link) {
-        room.leave(user_id);
+    let room = get_room_by_link(room_link)?;
+    room.leave(user_id).await?;
+    if room.host_id() == user_id {
+        return match rooms().find_next_host(room_link) {
+            Err(RoomError::RoomEmpty) => {
+                rooms().update_timer(room_link)?;
+                Ok(())
+            },
+            Err(e) => Err(e),
+            Ok(_) => Ok(())
+        }
     }
-    todo!()
+    
+    Ok(())
 }
 
 fn gen_rand_string(len: usize) -> String {

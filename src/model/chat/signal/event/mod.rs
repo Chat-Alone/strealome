@@ -1,10 +1,10 @@
 mod join;
 mod leave;
-mod chat;
+mod message;
 
 pub use join::Join;
 pub use leave::Leave;
-pub use chat::Chat;
+pub use message::Message;
 
 use serde::{ Deserialize, Serialize };
 use super::{ DirectedPayload, Direction };
@@ -14,12 +14,16 @@ use super::{ DirectedPayload, Direction };
 pub enum Event {
     Join(Join),
     Leave(Leave),
-    Chat(Chat),
+    Chat(Message),
 }
 
 impl Event {
-    pub fn join(user_id: i32, room: String) -> Self {
-        todo!()
+    pub fn join(user_id: i32, capacity: usize) -> Self {
+        Self::Join(Join { user_id, capacity })
+    }
+
+    pub fn leave(user_id: i32, capacity: usize) -> Self {
+        Self::Leave(Leave { user_id, capacity })
     }
     
     pub fn chat() -> Self {

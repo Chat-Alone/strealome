@@ -4,9 +4,9 @@ mod message;
 mod author;
 mod signal;
 
-pub use signal::{Signal, Event};
+pub use signal::{Signal, Event, Message};
 pub use author::Author;
-pub use message::{Message, MessagePayload};
+// pub use message::{Message, MessagePayload};
 
 static ID: AtomicI32  = AtomicI32::new(0);
 pub fn gen_id() -> i32 {
