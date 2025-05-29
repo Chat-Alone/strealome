@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use crate::controller::Response;
 use super::{room, user, Repository};
-use crate::model::{ChatMessage, ChatMessageContent};
+use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent};
 
 const MPSC_BUF_SIZE: usize = 32;
 
@@ -35,16 +35,21 @@ impl From<ChatError> for Response {
     }
 }
 
+impl From<&ChatSignal> for Message {
+    fn from(value: &ChatSignal) -> Self {
+        Message::Text(serde_json::to_string(value).unwrap().into())
+    }
+}
+
 pub async fn handle_websocket(
     socket: WebSocket, room_link: String,
     user_id: i32, repo: Arc<dyn Repository>
 ) -> Result<(), ChatError> {
     let user = user::get_user_by_id(repo, user_id).await?;
-    let (tx, mut rx) = mpsc::channel::<Arc<ChatMessage>>(MPSC_BUF_SIZE);
+    let (tx, mut rx) = mpsc::channel::<Arc<ChatSignal>>(MPSC_BUF_SIZE);
     let (mut sender, mut recver) = socket.split();
-
-    let room = room::get_room_by_link(&room_link)?;
-    room.join(user_id, tx.clone()).await;
+    
+    room::join_room(&room_link, user_id, tx.clone()).await?;
     
     println!("CurrRooms: {:?}", room::rooms());
     
@@ -52,17 +57,17 @@ pub async fn handle_websocket(
     let recv_fut = async move {
         while let Some(Ok(msg)) = recver.next().await {
             println!("recv: {:?}", msg);
-            if let Message::Text(text) = msg {
-                if let Ok(content) = serde_json::from_str::<ChatMessageContent>(&text) {
-                    room.sync_message(user.id, content).await?;
-                } else {
-                    // TODO! 
-                    println!("bad message: {}", text);
-                    _tx.send(Arc::new(ChatMessage::new(user.id, room_link.clone(), 
-                        ChatMessageContent::Text("发的不对你这个".to_string())))
-                    ).await.map_err(|_| ChatError::InternalError)?;
-                }
-            }
+            // if let Message::Text(text) = msg {
+            //     if let Ok(content) = serde_json::from_str::<ChatMessageContent>(&text) {
+            //         room.sync_message(user.id, content).await?;
+            //     } else {
+            //         // TODO! 
+            //         println!("bad message: {}", text);
+            //         _tx.send(Arc::new(ChatMessage::new(user.id, room_link.clone(), 
+            //             ChatMessageContent::Text("发的不对你这个".to_string())))
+            //         ).await.map_err(|_| ChatError::InternalError)?;
+            //     }
+            // }
         }
         Ok(())
     };
@@ -70,7 +75,7 @@ pub async fn handle_websocket(
     let send_fut = async move {
         while let Some(msg) = rx.recv().await {
             println!("sending: {:?}", msg);
-            sender.send(msg.serialize().await.into()).await.map_err(|e| ChatError::from(e))?;
+            sender.send(msg.as_ref().into()).await.map_err(ChatError::from)?;
         }
         Ok(())
     };
@@ -86,6 +91,8 @@ pub async fn handle_websocket(
             recv_task.abort();
         }
     }
+    
+    let _ = room::leave_room(&room_link, user_id).await;
         
     Ok(())
 }
@@ -100,12 +107,8 @@ pub async fn handle_websocket(
 pub async fn send_message(repo: Arc<dyn Repository>, user_id: i32, room_link: &str, content: String) -> Result<(), ChatError> {
     let user = user::get_user_by_id(repo, user_id).await?;
     let room = room::get_room_by_link(room_link)?;
-    room.sync_message(user.id, ChatMessageContent::Text(content)).await?;
-    Ok(())
-}
 
-impl From<&ChatMessage> for Message {
-    fn from(msg: &ChatMessage) -> Self {
-        Message::Text(format!("{:?}", &msg).into())
-    }
+    room.sync_event(user.id, ChatEvent::chat()).await?;
+    // room.sync_message(user.id, ChatMessageContent::Text(content)).await?;
+    Ok(())
 }

@@ -18,13 +18,22 @@ async fn post(
     jwt: Jwt, State(state): State<AppState>,
     Json(req): Json<PostRequest>
 ) -> Response {
-    let user = user::get_user_by_id(state.repository, jwt.sub).await;
+    let repo = state.repository;
+    let user = user::get_user_by_id(repo.clone(), jwt.sub).await;
     if let Err(e) = user { return e.into() }
     let user = user.unwrap();
     
     let PostRequest { name: room_name } = req;
-    let room = RoomResp::from(room::create_host_by(user.id, user.name, room_name), user.id);
-    Response::success(Some(PostResponse { room }))
+    let room = RoomResp::from(
+        room::create_host_by(user.id, room_name),
+        user.id, repo
+    ).await;
+    
+    match room {
+        Err(e) => e.into(),
+        Ok(room) => Response::success(Some(PostResponse { room })),
+    }
+    
 }
 
 pub fn route(path: &str) -> Router<AppState> {

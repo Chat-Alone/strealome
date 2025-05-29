@@ -170,7 +170,7 @@ pub async fn update_profile(repo: Arc<dyn Repository>, user_id: i32, param: Upda
     }
 
 
-    repo.update(user).await.map_err(|e| super::Error::from(e))?;
+    repo.update(user).await.map_err(super::Error::from)?;
     
     Ok(ret)
 }

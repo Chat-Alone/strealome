@@ -1,12 +1,12 @@
 use std::cell::RefCell;
 use std::sync::{Arc, LazyLock, RwLock};
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicI64, Ordering};
 use chrono::{DateTime, Timelike, Utc};
 use rand::RngCore;
 use tokio::sync::{mpsc};
 use dashmap::{DashMap};
 
-use crate::model::{ChatMessage, ChatMessageContent};
+use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent};
 
 const ROOM_SHARE_LINK_LEN: usize = 8;
 const ROOM_RELEASE_DURATION_S: i64 = 15;
@@ -17,6 +17,8 @@ thread_local! {
 
 use thiserror::Error as ThisError;
 use crate::controller::Response;
+use crate::repository::Repository;
+use crate::service::user;
 
 #[derive(Debug, ThisError)]
 pub enum RoomError {
@@ -26,6 +28,8 @@ pub enum RoomError {
     RoomReleased,
     #[error("User not in room")]
     UserNotFound,
+    #[error("{0}")]
+    UserError(#[from] user::UserError),
     #[error("Internal Error")]
     InternalError,
 }
@@ -40,23 +44,20 @@ impl From<RoomError> for Response {
 pub struct Room {
     link:       Arc<String>, // pk
 
-    host_id:    i32,
-    host_name:  Arc<RwLock<String>>,
+    host_id:    Arc<AtomicI32>,
     name:       Arc<RwLock<String>>,
-    users:      Arc<DashMap<i32, mpsc::Sender<Arc<ChatMessage>>>>, // user_id -> user_name
+    users:      Arc<DashMap<i32, mpsc::Sender<Arc<ChatSignal>>>>, // user_id -> user_name
     created_at: DateTime<Utc>,
 }
 
 impl Room {
-    fn new(host_id: i32, host_name: String, name: String, link: String) -> Self {
-        let created_at = Utc::now();
+    fn new(host_id: i32, name: String, link: String) -> Self {
         Self {
-            host_id,
-            host_name: Arc::new(RwLock::new(host_name)),
+            host_id: Arc::new(AtomicI32::new(host_id)),
             link: Arc::new(link.clone()),
             name: Arc::new(RwLock::new(name)),
             users: Arc::new(DashMap::new()),
-            created_at,
+            created_at: Utc::now(),
         }
     }
 
@@ -77,36 +78,41 @@ impl Room {
     }
     
     pub fn host_id(&self) -> i32 {
-        self.host_id
+        self.host_id.load(Ordering::Relaxed)
+    }
+    
+    pub async fn host_name(&self, repo: Arc<dyn Repository>) -> Result<String, RoomError> {
+        let host = user::get_user_by_id(repo, self.host_id()).await?;
+        Ok(host.name)
     }
     
     pub fn name(&self) -> String {
         self.name.read().unwrap().clone()
     }
-
-    pub fn host_name(&self) -> String {
-        self.host_name.read().unwrap().clone()
-    }
      
-    pub async fn join(&self, user_id: i32, tx: mpsc::Sender<Arc<ChatMessage>>) {
+    fn join(&self, user_id: i32, tx: mpsc::Sender<Arc<ChatSignal>>) {
         self.users.insert(user_id, tx);
+        // broadcast that a new user has joined
+        let msg = Arc::new(ChatEvent::join(user_id, self.share_link()));
     }
     
-    pub async fn leave(&self, user_id: i32) -> Result<(), RoomError> {
-        self.contains_user(user_id)?;
+    fn leave(&self, user_id: i32) {
         self.users.remove(&user_id);
-        Ok(())
     }
-
-    pub async fn sync_message(&self, author_id: i32, content: ChatMessageContent) -> Result<(), RoomError> {
+    
+    pub async fn sync_signal(&self, author_id: i32, signal: ChatSignal) -> Result<(), RoomError> {
         self.contains_user(author_id)?;
-        let msg = Arc::new(ChatMessage::new(author_id, self.share_link(), content));
+        let msg = Arc::new(signal);
         for item in self.users.iter() {
             if item.key() == &author_id { continue }
             item.value().send(msg.clone()).await.map_err(|_| RoomError::InternalError)?;
         }
-        
+
         Ok(())
+    }
+    
+    pub async fn sync_event(&self, author_id: i32, event: ChatEvent) -> Result<(), RoomError> { 
+        self.sync_signal(author_id, ChatSignal::event(author_id.into(), event)).await
     }
 }
 
@@ -132,7 +138,7 @@ impl Rooms {
         }
     }
 
-    fn create(&self, host_id: i32, host_name: String, room_name: String) -> Room {
+    fn create(&self, host_id: i32, room_name: String) -> Room {
 
         let mut res = self.hosts.entry(host_id).or_default();
         let new_link = loop {
@@ -145,7 +151,7 @@ impl Rooms {
         res.push(new_link.clone());
         drop(res);
         
-        let new_room = Room::new(host_id, host_name, room_name, new_link.clone());
+        let new_room = Room::new(host_id, room_name, new_link.clone());
         let release_timer = AtomicI64::new(Utc::now().timestamp());
         self.rooms.insert(new_link.clone(), new_room.clone());
         self.release_timers.insert(new_link, release_timer);
@@ -218,8 +224,23 @@ pub fn related_to(user_id: i32) -> Vec<Room> {
     ret
 }
 
-pub fn create_host_by(host_id: i32, host_name: String, name: String) -> Room {
-    rooms().create(host_id, host_name, name)
+pub fn create_host_by(host_id: i32, name: String) -> Room {
+    rooms().create(host_id, name)
+}
+
+pub async fn join_room(room_link: &str, user_id: i32, tx: mpsc::Sender<Arc<ChatSignal>>) -> Result<(), RoomError> {
+    if let Ok(room) = get_room_by_link(room_link) {
+        room.join(user_id, tx);
+    }
+
+    todo!()
+}
+
+pub async fn leave_room(room_link: &str, user_id: i32) -> Result<(), RoomError> {
+    if let Ok(room) = get_room_by_link(room_link) {
+        room.leave(user_id);
+    }
+    todo!()
 }
 
 fn gen_rand_string(len: usize) -> String {
