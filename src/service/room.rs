@@ -1,21 +1,23 @@
 use std::cell::RefCell;
 use std::sync::{Arc, LazyLock, RwLock};
-use std::sync::atomic::{AtomicI32, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::time::Duration;
 use chrono::{DateTime, Utc};
 use rand::RngCore;
 use tokio::sync::{mpsc};
-use dashmap::{DashMap};
+use dashmap::{DashMap, Entry};
 
 use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent, Message as ChatMessage};
 
 const ROOM_SHARE_LINK_LEN: usize = 8;
-const ROOM_RELEASE_DURATION_S: i64 = 15;
-static ROOMS: LazyLock<Rooms> = LazyLock::new(|| Rooms::new());
+const ROOM_RELEASE_DURATION: Duration = Duration::from_secs(15);
+static ROOMS: LazyLock<Rooms> = LazyLock::new(Rooms::new);
 thread_local! {
     static RNG: RefCell<rand::rngs::ThreadRng> = RefCell::new(rand::thread_rng());
 }
 
 use thiserror::Error as ThisError;
+use tokio::task::JoinHandle;
 use crate::controller::Response;
 use crate::repository::Repository;
 use crate::service::user;
@@ -26,8 +28,10 @@ pub enum RoomError {
     RoomNotFound,
     #[error("Room is empty")]
     RoomEmpty,
-    #[error("Room released")]
+    #[error("Room is released")]
     RoomReleased,
+    #[error("Room is not releasing")]
+    RoomNotReleasing,
     #[error("User not in room")]
     UserNotFound,
     #[error("User already in room")]
@@ -148,7 +152,8 @@ impl PartialEq for Room {
 #[derive(Clone, Debug)]
 pub struct Rooms {
     rooms: Arc<DashMap<String, Room>>, // link -> Room
-    release_timers: Arc<DashMap<String, AtomicI64>>, // link -> release_time
+    // release_timers: Arc<DashMap<String, AtomicI64>>, // link -> release_time
+    release_tasks: Arc<DashMap<String, JoinHandle<()>>>,
     hosts: Arc<DashMap<i32, Vec<String>>>, // host_id -> link(s)
 }
 
@@ -156,7 +161,7 @@ impl Rooms {
     fn new() -> Self {
         Self {
             rooms: Arc::new(DashMap::new()),
-            release_timers: Arc::new(DashMap::new()),
+            release_tasks: Arc::new(DashMap::new()),
             hosts: Arc::new(DashMap::new()),
         }
     }
@@ -172,23 +177,11 @@ impl Rooms {
         self.hosts.entry(host_id).or_default().push(new_link.clone());
         
         let new_room = Room::new(host_id, room_name, new_link.clone());
-        let release_timer = AtomicI64::new(Utc::now().timestamp());
         self.rooms.insert(new_link.clone(), new_room.clone());
-        self.release_timers.insert(new_link, release_timer);
-        
         println!("CurrRooms: {:?}", self.rooms);
         println!("CurrHosts: {:?}", self.hosts);
         
         new_room
-    }
-    
-    fn update_timer(&mut self, room_link: &str) -> Result<(), RoomError> {
-        if let Some(timer) = self.release_timers.get(room_link) {
-            timer.store(Utc::now().timestamp(), Ordering::SeqCst);
-            Ok(())
-        } else {
-            Err(RoomError::RoomNotFound)
-        }
     }
     
     /// return an error when:
@@ -236,30 +229,8 @@ impl Rooms {
     /// 
     /// **make sure room_link is not a ref from the Vec\<String\> in self.hosts**
     fn get_room_by_link(&self, room_link: &str) -> Result<Room, RoomError> {
-        let room = self.rooms.get(room_link)
-            .map(|r| r.clone()).ok_or(RoomError::RoomNotFound)?;
-        
-        if room.user_len() != 0 { return Ok(room) }
-        
-        // TODO! change to Async approaches
-        let now = Utc::now().timestamp();
-        if now > self.release_timers.get(room_link).unwrap().load(Ordering::Relaxed) + ROOM_RELEASE_DURATION_S {
-            // release room
-            let host_id = room.host_id();
-            drop(room);
-            
-            self.rooms.remove(room_link);
-            println!("room removed");
-            self.release_timers.remove(room_link);
-            println!("timer removed");
-            self.hosts.entry(host_id).and_modify(|rooms| {
-                rooms.retain(|r| r != room_link);
-            });
-            println!("hosts updated");
-            return Err(RoomError::RoomReleased);
-        };
-        
-        Ok(room)
+        self.rooms.get(room_link)
+            .map(|r| r.clone()).ok_or(RoomError::RoomNotFound)
     }
     
     fn hosted_rooms(&self, host_id: i32) -> Vec<Room> {
@@ -300,22 +271,65 @@ pub fn create_host_by(host_id: i32, name: String) -> Room {
     rooms().create(host_id, name)
 }
 
+async fn start_release_task(room_link: String) -> Result<(), RoomError> {
+    if rooms().rooms.get(&room_link).is_none() {
+        return Err(RoomError::RoomNotFound)
+    }
+    
+    if let Entry::Occupied(entry) = rooms().release_tasks.entry(room_link.clone()) {
+        if !entry.get().is_finished() {
+            entry.remove();
+            return Err(RoomError::RoomReleased)
+        }
+        entry.remove().abort();
+    }
+
+    rooms().release_tasks.insert(
+        room_link.clone(),
+        tokio::spawn(async move {
+            tokio::time::sleep(ROOM_RELEASE_DURATION).await;
+            rooms().rooms.remove(&room_link);
+        })
+    );
+
+    Ok(())
+}
+
+async fn stop_release_task(room_link: String) -> Result<(), RoomError> {
+    if rooms().rooms.get(&room_link).is_none() {
+        return Err(RoomError::RoomNotFound)
+    }
+
+    if let Entry::Occupied(entry) = rooms().release_tasks.entry(room_link) {
+        if !entry.get().is_finished() {
+            entry.remove();
+            return Err(RoomError::RoomReleased)
+        }
+        entry.remove().abort();
+        return Ok(())
+    }
+    
+    Err(RoomError::RoomNotReleasing)
+}
+
 pub async fn join_room(room_link: &str, user_id: i32, tx: mpsc::Sender<Arc<ChatSignal>>) -> Result<(), RoomError> {
     let room = get_room_by_link(room_link)?;
-    room.join(user_id, tx).await
+    room.join(user_id, tx).await?;
+    stop_release_task(room_link.to_string()).await?;
+    Ok(())
 }
 
 pub async fn leave_room(room_link: &str, user_id: i32) -> Result<(), RoomError> {
     let room = get_room_by_link(room_link)?;
     room.leave(user_id).await?;
+    if room.user_len() == 0 {
+        start_release_task(room_link.to_string()).await?;
+    }
+    
     if room.host_id() == user_id {
         return match rooms().find_next_host(room_link) {
-            Err(RoomError::RoomEmpty) => {
-                rooms().update_timer(room_link)?;
-                Ok(())
-            },
+            Err(RoomError::RoomEmpty) | Ok(_) => Ok(()),
             Err(e) => Err(e),
-            Ok(_) => Ok(())
         }
     }
     
@@ -330,4 +344,3 @@ fn gen_rand_string(len: usize) -> String {
         .map(|&b| CHARS[(b % CHARS.len() as u8) as usize] as char)
         .collect()
 }
-
