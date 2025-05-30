@@ -732,10 +732,21 @@
             </form>
         </div>
     </div>
-
     <div id="successToast" class="toast-notification">
         <i class="fas fa-check-circle icon text-green-500"></i>
         <span id="successMessage">操作成功!</span>
+        <button class="close-btn" tabindex="0">&times;</button>
+    </div>
+
+    <div id="warningToast" class="toast-notification">
+        <i class="fas fa-exclamation-triangle icon text-yellow-500"></i>
+        <span id="warningMessage">警告信息</span>
+        <button class="close-btn" tabindex="0">&times;</button>
+    </div>
+
+    <div id="errorToast" class="toast-notification">
+        <i class="fas fa-times-circle icon text-red-500"></i>
+        <span id="errorMessage">错误信息</span>
         <button class="close-btn" tabindex="0">&times;</button>
     </div>
 
@@ -895,6 +906,7 @@
     </footer>
 
     <script>
+        // TODO: 在生产环境中移除
         /**
          * TODO: [重要] 在生产环境部署前：
          * 1. 移除所有带有"TODO: 在生产环境中移除"标记的测试代码
@@ -914,6 +926,248 @@
         }, { passive: false });
 
         $(document).ready(function () {
+            let ws = null;
+            let currentRoomId = null;
+            let cachedUsers = new Map();
+            let hostUserId = null;
+
+            function getRoomIdFromUrl() {
+                const pathParts = window.location.pathname.split('/');
+                if (pathParts.length >= 3 && pathParts[1] === 'share') {
+                    return pathParts[2];
+                }
+                console.warn('无法从URL中获取房间ID:', window.location.pathname);
+                showErrorToast('无法获取房间ID。');
+                return null;
+            }
+
+            async function fetchWebSocketToken() {
+                try {
+                    const response = await fetch('/chat/gateway', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        let errorMsg = `获取WebSocket令牌失败: HTTP ${response.status}`;
+                        try {
+                            const errorData = await response.json();
+                            errorMsg += ` - ${errorData.message || errorData.error || '未知错误'}`;
+                        } catch (e) {/* 忽略解析错误 */ }
+                        console.error(errorMsg);
+                        showErrorToast(errorMsg);
+                        return null;
+                    }
+
+                    const data = await response.json();
+
+                    if (data && data.success && data.payload && data.payload.gateway_token) {
+                        return data.payload.gateway_token;
+                    } else {
+                        console.error('获取WebSocket令牌失败:', data);
+                        showErrorToast('无法获取WebSocket令牌。');
+                        return null;
+                    }
+                } catch (error) {
+                    console.error('获取WebSocket令牌时出错:', error);
+                    showErrorToast('无法获取WebSocket令牌。');
+                    return null;
+                }
+            }
+
+            async function fetchRoomDetailAndHostId() {
+                if (!currentRoomId) {
+                    console.error('无法获取房间ID，无法获取房间详情。');
+                    return false;
+                }
+
+                console.log('尝试获取房间详情和主播ID...');
+                try {
+                    const response = await fetch('/room/detail', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ room: currentRoomId })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success && data.payload && data.payload.host_id !== undefined) {
+                        hostUserId = data.payload.host_id;
+                        console.log('获取房间详情成功，主播ID:', hostUserId);
+                        return true;
+                    } else {
+                        console.error('获取房间详情失败:', data);
+                        showErrorToast('无法获取房间详情。');
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('获取房间详情时出错:', error);
+                    showErrorToast('无法获取房间详情。');
+                    hostUserId = null;
+                    return false;
+                }
+            }
+
+            function connectWebSocket(token, roomId) {
+                if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                    console.warn('WebSocket连接已存在或正在连接，无法重新连接。');
+                    return;
+                }
+
+                const wsUrl = `wss://${window.location.host}/chat/ws/${roomId}?token=${encodeURIComponent(token)}`;
+                console.log('尝试连接WebSocket:', wsUrl);
+
+                ws = new WebSocket(wsUrl); ws.onopen = async function () {
+                    console.log('WebSocket连接已打开');
+                    showSuccessToast('实时聊天连接成功。');
+
+                    await fetchViewersList();
+                };
+
+                ws.onmessage = async function (event) {
+                    console.log('收到WebSocket消息:', event.data);
+                    try {
+                        const messageData = JSON.parse(event.data);
+
+                        if (messageData && messageData.p && messageData.p.ev) {
+                            const eventPayload = messageData.p;
+                            const eventName = eventPayload.ev;
+                            const eventData = eventPayload.d;
+
+                            let userDetail;
+
+                            switch (eventName) {
+                                case 'join':
+                                    console.log("用户加入房间:", eventData);
+                                    if (eventData.capacity !== undefined) {
+                                        $('#viewerCount').text(eventData.capacity.toLocalString());
+                                        $('#totalViewers').text(eventData.capacity.toLocalString());
+                                    }
+
+                                    userDetail = await getUserDetails(eventData.user_id);
+                                    if (userDetail) {
+                                        addSystemMessageToChat(`${userDetail.username} 加入了直播间！`);
+                                    } else {
+                                        console.warn('无法获取用户详情:', eventData.user_id);
+                                        addSystemMessageToChat(`一位用户（ID: ${eventData.user_id}）加入了直播间！`);
+                                    }
+                                    await fetchViewersList();
+                                    break;
+                                case 'chat':
+                                    console.log("收到聊天消息:", eventData);
+                                    if (eventData.author_id !== undefined && eventData.content && eventData.created_at) {
+                                        userDetail = await getUserDetails(eventData.author_id);
+
+                                        let authorUsername = `用户 ${eventData.author_id}`;
+                                        let authorIsHost = false;
+
+                                        if (userDetail) {
+                                            authorUsername = userDetail.username;
+                                            authorIsHost = userDetail.isHost;
+                                        } else {
+                                            console.warn('无法获取用户详情:', eventData.author_id);
+                                        }
+
+                                        addMessageToChat(
+                                            eventData.content,
+                                            authorUsername,
+                                            String(eventData.author_id),
+                                            eventData.created_at,
+                                            authorIsHost
+                                        );
+                                    } else {
+                                        console.warn('无效的聊天消息格式:', eventData);
+                                    }
+                                    break;
+                                case 'leave':
+                                    console.log("用户离开房间:", eventData);
+                                    if (eventData.capacity !== undefined) {
+                                        $('#viewerCount').text(eventData.capacity);
+                                        $('#totalViewers').text(eventData.capacity);
+                                    }
+
+                                    userDetail = await getUserDetails(eventData.user_id);
+                                    if (userDetail) {
+                                        addSystemMessageToChat(`${userDetail.username} 离开了直播间。`);
+                                    } else {
+                                        console.warn('无法获取用户详情:', eventData.user_id);
+                                        addSystemMessageToChat(`一位用户（ID: ${eventData.user_id}）离开了直播间。`);
+                                    }
+                                    await fetchViewersList();
+                                    break;
+                                default:
+                                    console.warn('未知的WebSocket事件:', eventName, eventData);
+                                    break;
+                            }
+                        } else {
+                            console.warn('无效的WebSocket消息格式:', event.data);
+                        }
+                    } catch (e) {
+                        console.error('处理WebSocket消息时出错:', e, event.data);
+                    }
+                };
+
+                ws.onclose = function (event) {
+                    console.warn('WebSocket连接已关闭:', event);
+                    let reasonMsg = 'WebSocket连接已断开。';
+                    if (event.reason) {
+                        reasonMsg += `原因: ${event.reason}`;
+                    } if (event.code === 1000) {
+                        // 正常关闭
+                    } else if (event.code === 4004) {
+                        reasonMsg = '房间不存在或无法加入。';
+                        showErrorToast(reasonMsg);
+                    } else if (event.code >= 4000 && event.code < 5000) {
+                        reasonMsg = `连接错误：${event.reason || '未知错误(代码: ${event.code})'}`;
+                        showErrorToast(reasonMsg);
+                    } else {
+                        showErrorToast(reasonMsg);
+                    }
+                    ws = null;
+                };
+
+                ws.onerror = function (error) {
+                    console.error('WebSocket发生错误:', error);
+                    showErrorToast('WebSocket连接发生错误。');
+                    ws = null;
+                };
+            }
+
+            async function initilizeWebSocketConnection() {
+                currentRoomId = getRoomIdFromUrl();
+                if (!currentRoomId) {
+                    console.error('无法获取房间ID，无法连接WebSocket。');
+                    $('messageInput').prop('disabled', true).attr('placeholder', '无法连接到聊天。');
+                    $('#sendMessageBtn').prop('disabled', true);
+                    return;
+                }
+
+                const gotHostId = await fetchRoomDetailAndHostId();
+                if (!gotHostId) {
+                    console.error('无法获取房间详情或主播ID，无法连接WebSocket。');
+                    $('messageInput').prop('disabled', true).attr('placeholder', '无法获取房间详情。');
+                    $('#sendMessageBtn').prop('disabled', true);
+                    return;
+                }
+
+                const wsToken = await fetchWebSocketToken();
+                if (wsToken) {
+                    connectWebSocket(wsToken, currentRoomId);
+                } else {
+                    console.error('无法获取WebSocket令牌，无法连接。');
+                    $('messageInput').prop('disabled', true).attr('placeholder', '聊天凭证获取失败。');
+                    $('#sendMessageBtn').prop('disabled', true);
+                }
+            }
+
+            initilizeWebSocketConnection();
+
             function initKeyboardNavigation() {
                 $('body').addClass('keyboard-navigation');
 
@@ -1030,6 +1284,21 @@
 
             function hideToast(selector) {
                 $(selector).removeClass('show');
+            }
+
+            function showErrorToast(message, duration = 5000) {
+                $('#errorMessage').text(message);
+                showToast('#errorToast', duration);
+            }
+
+            function showWarningToast(message, duration = 5000) {
+                $('#warningMessage').text(message);
+                showToast('#warningToast', duration);
+            }
+
+            function showSuccessToast(message, duration = 3000) {
+                $('#successMessage').text(message);
+                showToast('#successToast', duration);
             }
 
             const themeToggle = $('#themeToggle');
@@ -1158,22 +1427,47 @@
                 }
             });
 
-            function sendMessage() {
-                const message = $('#messageInput').val().trim();
-                if (message) {
-                    // TODO: 实际应用中，需要通过API从后端获取当前用户是否为主播
-                    const isHost = false;
-                    addMessageToChat(message, null, "user123", null, isHost);
-                    $('#messageInput').val('');
+            async function sendMessage() {
+                const messageContent = $('#messageInput').val().trim();
+                if (!messageContent) {
+                    return;
+                } if (!currentRoomId) {
+                    console.warn('无法获取房间ID，无法发送消息。');
+                    showErrorToast('无法发送消息，房间ID未定义。');
+                    return;
+                }
 
-                    // TODO: 向服务器发送消息
-                    // 消息格式示例:
-                    // {
-                    //    message: message,
-                    //    userId: "user123",
-                    //    timestamp: Date.now(),
-                    //    isHost: false
-                    // }
+                $('#messageInput').prop('disabled', true);
+                $('#sendMessageBtn').prop('disabled', true).addClass('opcaty-50 cursor-not-allowed');
+
+                try {
+                    const response = await fetch('/chat/message', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            room: currentRoomId,
+                            content: messageContent
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        addMessageToChat(messageContent);
+                        $('#messageInput').val('');
+                    } else {
+                        console.error('发送消息失败:', data);
+                        showErrorToast(data.message || '发送消息失败。');
+                    }
+                } catch (error) {
+                    console.error('发送消息时发生错误:', error);
+                    showErrorToast('发送消息时发生错误。');
+                } finally {
+                    $('#messageInput').prop('disabled', false);
+                    $('#sendMessageBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
                 }
             }
 
@@ -1270,6 +1564,24 @@
                 }
             }
 
+            function addSystemMessageToChat(message, timestamp = null) {
+                const now = timestamp ? new Date(timestamp) : new Date();
+                const time = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                const systemMessageHTML = `
+                    <div class="message flex justify-center my-3">
+                        <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-full text-sm text-gray-600 dark:text-gray-400">
+                            <i class="fas fa-info-circle text-blue-500" aria-hidden="true"></i>
+                            <span>${message}</span>
+                            <span class="text-xs opacity-75">${time}</span>
+                        </div>
+                    </div>
+                `;
+
+                $('#chatContainer').append(systemMessageHTML);
+                $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
+            }
+
             $('#logoutBtn').on('click', function () {
                 fetch('/user/logout', { method: 'POST' })
                     .then(_ => {
@@ -1328,7 +1640,7 @@
                 let len = textEncoder.encode(username).length;
                 return len >= 4 && len <= 24;
             }
-         
+
             function validatePassword(password) {
                 const result = {
                     isValid: true,
@@ -1450,7 +1762,7 @@
                 const newPassword = $('#newPassword').val();
                 const confirmPassword = $('#confirmPassword').val();
                 const currentPasswordValue = $('#currentPassword').val();
-                
+
                 let hasError = false;
                 $('#usernameError').addClass('hidden');
                 $('#passwordLengthError').addClass('hidden');
@@ -1504,8 +1816,7 @@
                 try {
                     const token = localStorage.getItem('authToken');
                     if (!token) {
-                        $('#successMessage').text('用户未登录或会话已过期，请重新登录。');
-                        showToast('#successToast', 5000);
+                        showErrorToast('用户未登录或会话已过期，请重新登录。');
                         $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
                         return;
                     }
@@ -1536,8 +1847,7 @@
                             $('#username').text(data.payload.user.username);
                         }
                         closeSettingsModal();
-                        $('#successMessage').text(successMsg);
-                        showToast('#successToast', 3000);
+                        showSuccessToast(successMsg);
                     } else {
                         let errorMsg = '更新失败，请稍后重试。';
 
@@ -1590,13 +1900,11 @@
                         } else if (!data.hasOwnProperty('success')) { // HTTP OK, JSON已解析, 但缺少 'success' 字段
                             errorMsg = '服务器响应无效 (缺少success字段)。请稍后重试。';
                         }
-                        $('#successMessage').text(errorMsg);
-                        showToast('#successToast', 5000);
+                        showErrorToast(errorMsg);
                     }
                 } catch (networkError) {
                     console.error('用户设置更新网络请求失败:', networkError);
-                    $('#successMessage').text('网络连接错误，请检查您的网络并稍后重试。');
-                    showToast('#successToast', 5000);
+                    showErrorToast('网络连接错误，请检查您的网络并稍后重试。');
                 } finally {
                     $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
                 }
@@ -1691,14 +1999,120 @@
                 // 应包含直播间标题、状态、观众数、直播时长等信息
             }
 
-            function fetchChatHistory() {
-                // TODO: 对接聊天历史记录API
-                // 获取最近的聊天记录，包括消息内容、发送者信息、时间戳等
+            async function getUserDetails(userId) {
+                if (typeof userId !== 'number') {
+                    console.warn('getUserDetails: userId is not a number, Received:', userId);
+                    try {
+                        userId = parseInt(userId);
+                        if (isNaN(userId)) throw new Error('Invalid userId conversion to number');
+                    } catch (e) {
+                        console.error('getUserDetails: Failed to convert userId to number:', e);
+                        return null;
+                    }
+                }
+
+                if (cachedUsers.has(userId)) {
+                    return cachedUsers.get(userId);
+                }
+
+                if (!currentRoomId) {
+                    console.warn('getUserDetails: currentRoomId is not set, cannot fetch user details.');
+                    return null;
+                }
+
+                console.log('Fetching user details for userId:', userId, 'in room:', currentRoomId);
+                try {
+                    const response = await fetch('/room/user', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ user_id: userId, room: currentRoomId })
+                    });
+                    const data = await response.json();
+
+                    if (data.success && data.payload && data.payload.id !== undefined) {
+                        const user = data.payload;
+                        const isHost = (hostUserId !== null && user.id === hostUserId); const userDetail = {
+                            id: user.id,
+                            username: user.username,
+                            isHost: isHost,
+                            createdAt: user.created_at
+                        };
+                        cachedUsers.set(user.id, userDetail);
+                        return userDetail;
+                    } else if (!data.success && data.payload && data.payload.error) {
+                        console.error('获取用户详情失败:', data.payload.error);
+                        showErrorToast(`获取用户详情失败: ${data.payload.error}`);
+                        return null;
+                    } else {
+                        console.error('获取用户详情失败: 未知错误');
+                        showErrorToast(`获取用户详情失败: 未知错误`);
+                        return null;
+                    }
+                } catch (error) {
+                    console.error('获取用户详情失败:', error);
+                    showErrorToast(`获取用户详情失败: 网络错误`);
+                    return null;
+                }
             }
 
-            function fetchViewersList() {
-                // TODO: 对接观众列表API
-                // 获取当前观众列表，包括用户名、ID、状态等
+            async function fetchViewersList() {
+                if (!currentRoomId) {
+                    console.error('当前直播间ID未设置，无法获取观众列表。');
+                    return;
+                }
+                console.log('Fetching viewers list for room:', currentRoomId);
+                try {
+                    const response = await fetch(`/room/user_list`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({ room: currentRoomId })
+                    });
+
+                    const data = await response.json();
+                    if (data.success && data.payload && data.payload.users) {
+                        const users = data.payload.users;
+                        $('#viewersList').empty();
+                        cachedUsers.clear();
+
+                        users.forEach(user => {
+                            const isHost = (hostUserId !== null && user.id === hostUserId);
+                            const viewerData = {
+                                userId: user.id,
+                                username: user.username,
+                                status: user.status || 'online',
+                                isHost: isHost
+                            }; cachedUsers.set(user.id, {
+                                id: user.id,
+                                username: user.username,
+                                isHost: isHost,
+                                createdAt: user.created_at
+                            });
+
+                            addViewerToList(viewerData);
+                        });
+                        $('#totalViewers').text(users.length);
+                        $('#viewerCount').text(users.length.toLocalString());
+                        console.log('观众列表更新成功:', users.length, '观众');
+                    } else if (!data.success && data.payload && data.payload.error) {
+                        console.error('获取观众列表失败:', data.payload.error);
+                        showErrorToast(`获取观众列表失败: ${data.payload.error}`);
+                        $('#viewersList').empty().append('<p class="text-center text-[var(--text-secondary)]">无法加载观众列表</p>');
+                        $('#totalViewers').text('0');
+                        $('#viewerCount').text('0');
+                    } else {
+                        console.error('获取观众列表失败: 未知错误');
+                        showErrorToast(`获取观众列表失败: 未知错误`);
+                    }
+                } catch (error) {
+                    console.error('获取观众列表失败:', error);
+                    showErrorToast(`获取观众列表失败: 网络错误`);
+                }
             }
 
             function listenForNewMessages() {
@@ -1731,103 +2145,6 @@
                 return colors[colorIndex];
             }
 
-            // 添加测试数据 
-            // TODO: 在生产环境中移除此测试数据
-            addTestMessages();
-            addTestViewers();
-
-            // TODO: 在生产环境中移除此测试代码
-            $('#toggleStreamBtn').on('click', function () {
-                const isCurrentlyLive = !$('#offlineOverlay').hasClass('active');
-                setStreamLiveStatus(!isCurrentlyLive);
-            });
-
-            // TODO: 在生产环境中移除此函数
-            function addTestMessages() {
-                const testMessages = [
-                    {
-                        userId: 'user1',
-                        username: '刘子',
-                        message: '我是弱智😀',
-                        timestamp: '2025-05-10T10:42:00'
-                    },
-                    {
-                        userId: 'user2',
-                        username: '张子',
-                        message: '👋',
-                        timestamp: '2025-05-10T10:43:00'
-                    },
-                    {
-                        userId: 'user3',
-                        username: '沈子',
-                        message: '这是一个用于测试的长消息，看看它在聊天窗口中是如何显示的。众所周知，长消息可能会影响聊天窗口的布局，所以我们需要确保它们能够正确地显示和处理。那么，让我们看看这个长消息在聊天窗口中的效果如何。怎么样？哈哈！昨天晚上，我看了一部非常有趣的电影，真是太好笑了！',
-                        timestamp: '2025-05-10T10:45:00'
-                    },
-                    {
-                        userId: 'host1',
-                        username: '浮玉',
-                        message: '欢迎来到直播间！',
-                        timestamp: '2025-05-10T10:47:00'
-                    },
-                    {
-                        userId: 'user4',
-                        username: '神秘人',
-                        message: '我烧起来了！🔥🔥🔥',
-                        timestamp: '2025-05-10T10:49:00'
-                    }
-                ];
-
-                testMessages.forEach(msg => {
-                    // TODO: 在生产环境中需要从后端API获取主播ID
-                    const isHost = msg.userId === 'host1';
-                    addMessageToChat(msg.message, msg.username, msg.userId, msg.timestamp, isHost);
-                });
-            }
-
-            // TODO: 在生产环境中移除此函数
-            function addTestViewers() {
-                const testViewers = [
-                    {
-                        userId: 'user1',
-                        username: '刘子',
-                        status: 'online',
-                        isHost: false
-                    },
-                    {
-                        userId: 'user2',
-                        username: '张子',
-                        status: 'online',
-                        isHost: false
-                    },
-                    {
-                        userId: 'user3',
-                        username: '沈子',
-                        status: 'online',
-                        isHost: false
-                    },
-                    {
-                        userId: 'host1',
-                        username: '浮玉',
-                        status: 'online',
-                        isHost: true
-                    },
-                    {
-                        userId: 'user4',
-                        username: '神秘人',
-                        status: 'online',
-                        isHost: false
-                    }
-                ];
-
-                $('#totalViewers').text(testViewers.length);
-
-                $('#viewersList').empty();
-
-                testViewers.forEach(viewer => {
-                    addViewerToList(viewer);
-                });
-            }
-
             function addViewerToList(viewer) {
                 const initials = viewer.username.charAt(0).toUpperCase();
                 const userColor = getUserColor(viewer.userId);
@@ -1854,12 +2171,6 @@
 
                 $('#viewersList').append(viewerHTML);
             }
-
-            // TODO: 对接用户身份验证API
-            // TODO: 对接直播状态检测API
-            // TODO: 对接直播控制API（主播功能）
-            // TODO: 对接聊天消息发送与接收API
-            // TODO: 对接用户管理API
         });
     </script>
 </body>
