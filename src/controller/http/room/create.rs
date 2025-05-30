@@ -25,7 +25,7 @@ async fn post(
     
     let PostRequest { name: room_name } = req;
     let room = RoomResp::from(
-        room::create_host_by(user.id, room_name),
+        room::create_host_by(user.id, room_name).await,
         user.id, repo
     ).await;
     

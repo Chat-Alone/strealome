@@ -15,22 +15,26 @@ use std::sync::atomic::AtomicI32;
 pub struct Signal {
     id:         i32,
     #[serde(rename = "a")]
-    author_id:  Author,
+    author:     Author,
     #[serde(flatten)]
     payload:    Payload,
 }
 
 impl Signal {
-    pub fn new(id: i32, author_id: Author, payload: Payload) -> Self {
+    pub fn new(id: i32, author: Author, payload: Payload) -> Self {
         Self {
             id,
-            author_id,
+            author,
             payload,
         }
     }
     
-    pub fn event(id: i32, author_id: Author, event: Event) -> Self {
-        Self::new(id, author_id, Payload::Event(event))
+    pub fn event(id: i32, author: Author, event: Event) -> Self {
+        Self::new(id, author, Payload::Event(event))
+    }
+    
+    pub fn author(&self) -> Author {
+        self.author
     }
 }
 
@@ -53,7 +57,7 @@ pub enum Payload {
 fn test() {
     let signal = Signal {
         id: 1,
-        author_id: Author::User(1),
+        author: Author::User(1),
         payload: Payload::HandShake(HandShake {
             id: 1,
             sn: 1,
