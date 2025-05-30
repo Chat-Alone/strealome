@@ -1463,6 +1463,7 @@
                 } finally {
                     $('#messageInput').prop('disabled', false);
                     $('#sendMessageBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
+                    $('#messageInput').val('').focus();
                 }
             }
 
@@ -1565,8 +1566,8 @@
 
                 const systemMessageHTML = `
                     <div class="message flex justify-center my-3">
-                        <div class="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-full text-sm text-gray-600 dark:text-gray-400">
-                            <i class="fas fa-info-circle text-blue-500" aria-hidden="true"></i>
+                        <div class="flex items-center gap-2 px-3 py-2 bg-[var(--secondary-bg)] rounded-full text-sm text-[var(--text-secondary)]">
+                            <i class="fas fa-info-circle text-[var(--accent-color)]" aria-hidden="true"></i>
                             <span>${message}</span>
                             <span class="text-xs opacity-75">${time}</span>
                         </div>
