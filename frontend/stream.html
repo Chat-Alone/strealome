@@ -1049,8 +1049,8 @@
                                 case 'join':
                                     console.log("用户加入房间:", eventData);
                                     if (eventData.capacity !== undefined) {
-                                        $('#viewerCount').text(eventData.capacity.toLocalString());
-                                        $('#totalViewers').text(eventData.capacity.toLocalString());
+                                        $('#viewerCount').text(eventData.capacity.toLocaleString());
+                                        $('#totalViewers').text(eventData.capacity.toLocaleString());
                                     }
 
                                     userDetail = await getUserDetails(eventData.user_id);
@@ -2094,7 +2094,7 @@
                             addViewerToList(viewerData);
                         });
                         $('#totalViewers').text(users.length);
-                        $('#viewerCount').text(users.length.toLocalString());
+                        $('#viewerCount').text(users.length.toLocaleString());
                         console.log('观众列表更新成功:', users.length, '观众');
                     } else if (!data.success && data.payload && data.payload.error) {
                         console.error('获取观众列表失败:', data.payload.error);
