@@ -1026,7 +1026,10 @@
                 ws = new WebSocket(wsUrl); ws.onopen = async function () {
                     console.log('WebSocket连接已打开');
                     showSuccessToast('实时聊天连接成功。');
-
+                    const gotHostId = await fetchRoomDetailAndHostId();
+                    if (!gotHostId) {
+                        console.warn('无法获取房间详情，主播ID可能为null。');
+                    }
                     await fetchViewersList();
                 };
 
@@ -1144,14 +1147,6 @@
                 if (!currentRoomId) {
                     console.error('无法获取房间ID，无法连接WebSocket。');
                     $('messageInput').prop('disabled', true).attr('placeholder', '无法连接到聊天。');
-                    $('#sendMessageBtn').prop('disabled', true);
-                    return;
-                }
-
-                const gotHostId = await fetchRoomDetailAndHostId();
-                if (!gotHostId) {
-                    console.error('无法获取房间详情或主播ID，无法连接WebSocket。');
-                    $('messageInput').prop('disabled', true).attr('placeholder', '无法获取房间详情。');
                     $('#sendMessageBtn').prop('disabled', true);
                     return;
                 }
