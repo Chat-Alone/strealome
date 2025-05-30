@@ -55,7 +55,7 @@ pub async fn listen<A: ToSocketAddrs>(
     
     let chat_ws_state = AppState {
         repository: repo.clone(),
-        jwt_auth_method: JwtAuthMethod::Headers,
+        jwt_auth_method: JwtAuthMethod::Query,
         jwt_secret,
         jwt_exp_duration,
         jwt_exp_dur_long,
