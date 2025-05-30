@@ -7,7 +7,7 @@ use rand::RngCore;
 use tokio::sync::{mpsc};
 use dashmap::{DashMap, Entry};
 
-use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent, Message as ChatMessage};
+use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent, Message as ChatMessage, gen_id};
 
 const ROOM_SHARE_LINK_LEN: usize = 8;
 const ROOM_RELEASE_DURATION: Duration = Duration::from_secs(15);
@@ -392,6 +392,19 @@ pub async fn leave_room(room_link: &str, user_id: i32) -> Result<(), RoomError> 
     }
     
     Ok(())
+}
+
+pub async fn send_message(
+    author_id: i32, room_link: String, content: String
+) -> Result<(), RoomError> {
+    match rooms().rooms.entry(room_link.to_string()) {
+        Entry::Occupied(entry) => {
+            let msg = ChatMessage::text(gen_id(), author_id, room_link, content);
+            entry.get().sync_event(author_id, ChatEvent::chat(msg)).await?;
+            Ok(())
+        },
+        Entry::Vacant(_) => Err(RoomError::RoomNotFound)
+    }
 }
 
 fn gen_rand_string(len: usize) -> String {

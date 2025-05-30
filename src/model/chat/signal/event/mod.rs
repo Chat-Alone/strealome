@@ -26,8 +26,8 @@ impl Event {
         Self::Leave(Leave { user_id, capacity })
     }
     
-    pub fn chat() -> Self {
-        todo!()
+    pub fn chat(msg: Message) -> Self {
+        Self::Chat(msg)
     }
 }
 

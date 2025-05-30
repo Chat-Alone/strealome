@@ -10,6 +10,18 @@ pub struct Message {
     pub created_at: DateTime<Utc>,
 }
 
+impl Message {
+    pub fn text(id: i32, author_id: i32, room: String, text: String) -> Self {
+        Self {
+            id:         0,
+            author_id,
+            room,
+            content:    MessagePayload::Text(text),
+            created_at: Utc::now(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "content")]
 pub enum MessagePayload {

@@ -104,11 +104,8 @@ pub async fn handle_websocket(
 //     Ok(room::create_host_by(user.id))
 // }
 
-pub async fn send_message(repo: Arc<dyn Repository>, user_id: i32, room_link: &str, content: String) -> Result<(), ChatError> {
+pub async fn send_message(repo: Arc<dyn Repository>, user_id: i32, room_link: String, content: String) -> Result<(), ChatError> {
     let user = user::get_user_by_id(repo, user_id).await?;
-    let room = room::get_room_by_link(room_link)?;
-
-    room.sync_event(user.id, ChatEvent::chat()).await?;
-    // room.sync_message(user.id, ChatMessageContent::Text(content)).await?;
+    room::send_message(user.id, room_link, content).await?;
     Ok(())
 }
