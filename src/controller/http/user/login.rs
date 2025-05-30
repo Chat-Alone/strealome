@@ -41,7 +41,7 @@ async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> Ax
             if state.jwt_auth_method.is_cookie() {
                 let duration = if remember { state.jwt_exp_dur_long } else { state.jwt_exp_duration };
                 let cookie = format!(
-                    "token={}; Max-Age={}; Path=/; HttpOnly; Secure; SameSite=Strict",
+                    "token={}; Max-Age={}; Path=/; HttpOnly; SameSite=Strict",
                     &post_res.token, duration.num_seconds()
                 );
                 res.headers_mut()
