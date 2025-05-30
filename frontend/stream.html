@@ -985,14 +985,14 @@
                 }
 
                 console.log('尝试获取房间详情和主播ID...');
+                const url = new URL('/room/detail', window.location.origin);
+                url.searchParams.append('room', currentRoomId);
                 try {
-                    const response = await fetch('/room/detail', {
-                        method: 'POST',
+                    const response = await fetch(url.toString(), {
+                        method: 'GET',
                         headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
+                            'Accept': 'application/json',
                         },
-                        body: JSON.stringify({ room: currentRoomId })
                     });
 
                     const data = await response.json();
