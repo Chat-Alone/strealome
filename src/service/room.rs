@@ -290,6 +290,7 @@ pub fn get_room_by_link(room_link: &str) -> Result<Room, RoomError> {
     rooms().get_room_by_link(room_link)
 }
 
+// TODO !handle duplicate!
 pub fn related_to(user_id: i32) -> Vec<Room> {
     let mut ret = rooms().related_rooms(user_id);
     ret.extend(rooms().hosted_rooms(user_id));
@@ -397,9 +398,9 @@ pub async fn leave_room(room_link: &str, user_id: i32) -> Result<(), RoomError> 
 pub async fn send_message(
     author_id: i32, room_link: String, content: String
 ) -> Result<(), RoomError> {
-    match rooms().rooms.entry(room_link.to_string()) {
+    match rooms().rooms.entry(room_link) {
         Entry::Occupied(entry) => {
-            let msg = ChatMessage::text(gen_id(), author_id, room_link, content);
+            let msg = ChatMessage::text(gen_id(), author_id, content);
             entry.get().sync_event(author_id, ChatEvent::chat(msg)).await?;
             Ok(())
         },

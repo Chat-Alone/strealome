@@ -5,17 +5,16 @@ use serde::{Deserialize, Serialize};
 pub struct Message {
     pub id:         i32,
     pub author_id:  i32,
-    pub room:       String,
+    #[serde(flatten)]
     pub content:    MessagePayload,
     pub created_at: DateTime<Utc>,
 }
 
 impl Message {
-    pub fn text(id: i32, author_id: i32, room: String, text: String) -> Self {
+    pub fn text(id: i32, author_id: i32, text: String) -> Self {
         Self {
-            id:         0,
+            id,
             author_id,
-            room,
             content:    MessagePayload::Text(text),
             created_at: Utc::now(),
         }

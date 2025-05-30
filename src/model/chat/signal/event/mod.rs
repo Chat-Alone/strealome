@@ -12,8 +12,11 @@ use super::{ DirectedPayload, Direction };
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "ev", content = "d")]
 pub enum Event {
+    #[serde(rename = "join")]
     Join(Join),
+    #[serde(rename = "leave")]
     Leave(Leave),
+    #[serde(rename = "chat")]
     Chat(Message),
 }
 
