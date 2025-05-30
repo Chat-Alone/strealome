@@ -1055,7 +1055,7 @@
 
                                     userDetail = await getUserDetails(eventData.user_id);
                                     if (userDetail) {
-                                        addSystemMessageToChat(`${userDetail.username} 加入了直播间！`);
+                                        addSystemMessageToChat(`${userDetail.name} 加入了直播间！`);
                                     } else {
                                         console.warn('无法获取用户详情:', eventData.user_id);
                                         addSystemMessageToChat(`一位用户（ID: ${eventData.user_id}）加入了直播间！`);
