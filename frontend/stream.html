@@ -1055,7 +1055,7 @@
 
                                     userDetail = await getUserDetails(eventData.user_id);
                                     if (userDetail) {
-                                        addSystemMessageToChat(`${userDetail.name} 加入了直播间！`);
+                                        addSystemMessageToChat(`${userDetail.username} 加入了直播间！`);
                                     } else {
                                         console.warn('无法获取用户详情:', eventData.user_id);
                                         addSystemMessageToChat(`一位用户（ID: ${eventData.user_id}）加入了直播间！`);
@@ -2030,9 +2030,10 @@
 
                     if (data.success && data.payload && data.payload.id !== undefined) {
                         const user = data.payload;
-                        const isHost = (hostUserId !== null && user.id === hostUserId); const userDetail = {
+                        const isHost = (hostUserId !== null && user.id === hostUserId);
+                        const userDetail = {
                             id: user.id,
-                            username: user.username,
+                            username: user.name,
                             isHost: isHost,
                             createdAt: user.created_at
                         };
