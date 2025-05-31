@@ -76,4 +76,3 @@ jobs:
             --name strealome \
             --restart unless-stopped \
             -p ${{ secrets.SERVICE_PORT }}:80
-            --env-file /path/to/env/file
