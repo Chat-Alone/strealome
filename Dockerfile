@@ -15,6 +15,8 @@ RUN cargo build --release
 
 FROM debian:buster-slim AS final
 
+RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev
+
 WORKDIR /usr/local/bin
 
 COPY --from=builder /usr/src/strealome/target/release/strealome .

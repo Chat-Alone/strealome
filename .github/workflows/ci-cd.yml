@@ -22,19 +22,18 @@ jobs:
 
     - name: Build Rust backend
       run: |
-        cargo build --release --verbose
+        cargo build --release
 
     - name: Run Rust tests
       run: |
-        cargo test --verbose
+        cargo test
 
     - name: Build Docker image
       run: |
-        REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
         docker build \
           --cache-from strealome:latest \
           -t strealome:latest \
-          -t registry.cn-beijing.aliyuncs.com/${REPO}:latest .
+          -t registry.cn-beijing.aliyuncs.com/${{ secrets.REPO_LOWERCASE }}:latest .
 
     - name: Build frontend
       run: |
@@ -55,7 +54,7 @@ jobs:
         context: .
         push: true
         tags: |
-          registry.cn-beijing.aliyuncs.com/${{ github.repository }}:latest
+          registry.cn-beijing.aliyuncs.com/${{ secrets.REPO_LOWERCASE }}:latest
 
     - name: Deploy to server
       if: github.ref == 'refs/heads/nightly'
