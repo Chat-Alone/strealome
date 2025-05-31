@@ -30,10 +30,11 @@ jobs:
 
     - name: Build Docker image
       run: |
+        REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
         docker build \
           --cache-from strealome:latest \
           -t strealome:latest \
-          -t registry.cn-beijing.aliyuncs.com/${{ github.repository }}:latest .
+          -t registry.cn-beijing.aliyuncs.com/${REPO}:latest .
 
     - name: Build frontend
       run: |
