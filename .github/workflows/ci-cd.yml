@@ -67,7 +67,7 @@ jobs:
         script: |
           docker login registry.cn-beijing.aliyuncs.com \
             --username ${{ secrets.SERVER_USERNAME }} \
-            --password ${{ secrets.SERVER_PASSWORD }} \
+            --password ${{ secrets.SERVER_PASSWORD }}
           cd /opt/strealome
           docker pull registry.cn-beijing.aliyuncs.com/${{ secrets.REPO_LOWERCASE }}:latest
           docker stop strealome || true
