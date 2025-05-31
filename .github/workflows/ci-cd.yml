@@ -75,4 +75,5 @@ jobs:
           docker run -d registry.cn-beijing.aliyuncs.com/${{ github.repository }}:latest \
             --name strealome \
             --restart unless-stopped \
-            -p ${{ secrets.SERVICE_PORT }}:80 \
+            -p ${{ secrets.SERVICE_PORT }}:80
+            --env-file /path/to/env/file
