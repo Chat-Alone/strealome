@@ -30,7 +30,7 @@ async fn main() {
     let repo = Repo::conn().await;
 
     let mut serve_task = controller::listen(
-        "0.0.0.0:56657",
+        "0.0.0.0:80",
         Arc::new(repo),
         "secret".to_string(),
         Duration::minutes(30),
