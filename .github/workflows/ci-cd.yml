@@ -7,9 +7,8 @@ on:
     branches: ["nightly"]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -27,6 +26,13 @@ jobs:
     - name: Run Rust tests
       run: |
         cargo test
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Build Docker image
       run: |
@@ -56,8 +62,12 @@ jobs:
         tags: |
           registry.cn-beijing.aliyuncs.com/${{ secrets.REPO_LOWERCASE }}:latest
 
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/nightly'
+    steps:
     - name: Deploy to server
-      if: github.ref == 'refs/heads/nightly'
       uses: appleboy/ssh-action@master
       with:
         host:     ${{ secrets.SERVER_HOST }}
@@ -67,13 +77,13 @@ jobs:
         script: |
           docker login registry.cn-beijing.aliyuncs.com \
             --username ${{ secrets.SERVER_USERNAME }} \
-            --password ${{ secrets.SERVER_PASSWORD }} \
+            --password ${{ secrets.SERVER_PASSWORD }}
           cd /opt/strealome
-          docker pull registry.cn-beijing.aliyuncs.com/${{ github.repository }}:latest
+          docker pull registry.cn-beijing.aliyuncs.com/${{ secrets.REPO_LOWERCASE }}:latest
           docker stop strealome || true
           docker rm strealome || true
-          docker run -d registry.cn-beijing.aliyuncs.com/${{ github.repository }}:latest \
+          docker run -d \
             --name strealome \
             --restart unless-stopped \
-            -p ${{ secrets.SERVICE_PORT }}:80
-            --env-file /path/to/env/file
+            -p ${{ secrets.SERVICE_PORT }}:80 \
+            registry.cn-beijing.aliyuncs.com/${{ secrets.REPO_LOWERCASE }}:latest
