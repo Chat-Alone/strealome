@@ -1020,7 +1020,7 @@
                     return;
                 }
 
-                const wsUrl = `ws://${window.location.host}/ws/chat/${roomId}?token=${encodeURIComponent(token)}`;
+                const wsUrl = `wss://${window.location.host}/ws/chat/${roomId}?token=${encodeURIComponent(token)}`;
                 console.log('尝试连接WebSocket:', wsUrl);
 
                 ws = new WebSocket(wsUrl); ws.onopen = async function () {
