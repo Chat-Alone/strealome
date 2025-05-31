@@ -2127,20 +2127,11 @@
             function getUserColor(userId) {
                 const colors = ['bg-blue-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500'];
 
-                if (!userId) {
+                if (typeof userId !== 'number' || isNaN(userId)) {
                     return colors[Math.floor(Math.random() * colors.length)];
                 }
 
-                let hash = 0;
-                for (let i = 0; i < userId.length; i++) {
-                    hash = ((hash << 5) - hash) + userId.charCodeAt(i);
-                    hash = hash & hash;
-                }
-
-                hash = Math.abs(hash);
-
-                const colorIndex = hash % colors.length;
-
+                const colorIndex = Math.abs(userId) % colors.length;
                 return colors[colorIndex];
             }
 
