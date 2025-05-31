@@ -13,7 +13,7 @@ COPY src ./src
 
 RUN cargo build --release
 
-FROM debian:slim-buster AS final
+FROM debian:buster-slim AS final
 
 WORKDIR /usr/local/bin
 
