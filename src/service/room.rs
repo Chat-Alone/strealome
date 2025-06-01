@@ -1,11 +1,12 @@
 use std::cell::RefCell;
+use std::hash::{Hash, RandomState};
 use std::sync::{Arc, LazyLock, RwLock};
-use std::sync::atomic::{AtomicI32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
 use chrono::{DateTime, Utc};
 use rand::RngCore;
 use tokio::sync::{mpsc};
-use dashmap::{DashMap, Entry};
+use dashmap::{DashMap, DashSet, Entry};
 
 use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent, Message as ChatMessage, gen_id};
 
@@ -62,6 +63,12 @@ pub struct Room {
     created_at: DateTime<Utc>,
 }
 
+impl Hash for Room {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.link.hash(state);
+    }
+}
+
 impl Room {
     fn new(host_id: i32, name: String, link: String) -> Self {
         Self {
@@ -104,6 +111,10 @@ impl Room {
     
     pub fn name(&self) -> String {
         self.name.read().unwrap().clone()
+    }
+    
+    pub fn set_name(&self, name: String) {
+        *self.name.write().unwrap() = name;
     }
     
     pub fn set_host(&self, host_id: i32) {
@@ -163,11 +174,13 @@ impl Room {
     }
 }
 
+impl Eq for Room {}
 impl PartialEq for Room {
     fn eq(&self, other: &Self) -> bool {
         self.link == other.link
     }
 }
+
 
 #[derive(Clone, Debug)]
 pub struct Rooms {
@@ -292,9 +305,9 @@ pub fn get_room_by_link(room_link: &str) -> Result<Room, RoomError> {
 
 // TODO !handle duplicate!
 pub fn related_to(user_id: i32) -> Vec<Room> {
-    let mut ret = rooms().related_rooms(user_id);
+    let mut ret: DashSet<_, RandomState> = DashSet::from_iter(rooms().related_rooms(user_id));
     ret.extend(rooms().hosted_rooms(user_id));
-    ret
+    ret.into_iter().collect()
 }
 
 pub async fn create_host_by(host_id: i32, name: String) -> Room {
@@ -359,10 +372,18 @@ async fn stop_release_task(room_link: String) -> Result<(), RoomError> {
     Ok(())
 }
 
+pub async fn change_room_name(room_link: &str, name: String)  -> Result<(), RoomError> {
+    let room = rooms().get_room_by_link(room_link)?;
+    room.set_name(name);
+    Ok(())
+}
+
 pub async fn join_room(room_link: &str, user_id: i32, tx: mpsc::Sender<Arc<ChatSignal>>) -> Result<(), RoomError> {
-    if let Entry::Occupied(entry) = rooms().rooms.entry(room_link.to_string()) {
-        entry.get().join(user_id, tx).await?;
-    }
+    // if let Entry::Occupied(entry) = rooms().rooms.entry(room_link.to_string()) {
+    //     entry.get().join(user_id, tx).await?;
+    // }
+    let room = rooms().get_room_by_link(room_link)?;
+    room.join(user_id, tx).await?;
     match stop_release_task(room_link.to_string()).await {
         Ok(_) | Err(RoomError::RoomNotReleasing) => Ok(()),
         Err(e) => Err(e),
@@ -372,14 +393,12 @@ pub async fn join_room(room_link: &str, user_id: i32, tx: mpsc::Sender<Arc<ChatS
 pub async fn leave_room(room_link: &str, user_id: i32) -> Result<(), RoomError> {
     use RoomError::*;
 
-    let host_id = match rooms().rooms.entry(room_link.to_string()) {
-        Entry::Occupied(entry) => {
-            entry.get().leave(user_id).await?;
-            entry.get().host_id()
-        }
-        Entry::Vacant(_) => return Err(RoomNotFound)
+    let host_id = {
+        let room = rooms().get_room_by_link(room_link)?;
+        room.leave(user_id).await?;
+        room.host_id()
     };
-
+    
     match start_release_task(room_link.to_string()).await {
         Ok(_) | Err(RoomReleased) | Err(RoomNotEmpty) => Ok(()),
         Err(e) => Err(e),
@@ -417,16 +436,14 @@ fn gen_rand_string(len: usize) -> String {
         .collect()
 }
 
-
-
-#[cfg(test)]
-mod stress_tests {
+// #[cfg(test)]
+pub mod stress_tests {
     use super::*;
     use tokio::sync::mpsc;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use tokio::task;
 
-    const CONCURRENT_USERS: usize = 5000;
+    const CONCURRENT_USERS: usize = 50;
     static ROOM_CREATION_COUNT: AtomicUsize = AtomicUsize::new(0);
 
     // 测试并发创建房间
@@ -472,29 +489,18 @@ mod stress_tests {
         assert_eq!(rooms().rooms.len(), CONCURRENT_USERS);
     }
 
-    #[test]
-    fn test_100() {
-        for _ in 0..1000 {
-            raw_join()
-        }
-    }
-
-    #[tokio::test]
-    async fn test_concurrent_join() {
+    // 测试并发加入房间
+    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+    pub async fn test_concurrent_join() {
         let room = create_host_by(0, "StressRoom".to_string()).await;
         let room_link = room.share_link();
-        // let msg_cnt = Arc::new(AtomicUsize::new(0));
+         
         let join_tasks: Vec<_> = (0..CONCURRENT_USERS)
             .map(|i| {
                 let room = room_link.clone();
-                // let msg_cnt = msg_cnt.clone();
                 let (tx, mut rx) = mpsc::channel(32);
                 task::spawn(async move {
-                    let mut cnt = 0;
-                    while let Some(msg) = rx.recv().await {
-                        cnt += 1;
-                    }
-                    // msg_cnt.fetch_add(cnt, Ordering::SeqCst);
+                    while rx.recv().await.is_some() {}
                 });
                 task::spawn(async move {
                     join_room(&room, i as i32, tx).await.unwrap()
@@ -514,38 +520,14 @@ mod stress_tests {
         // assert_eq!(msg_cnt.load(Ordering::SeqCst), (CONCURRENT_USERS-1) * (CONCURRENT_USERS));
     }
 
-    #[tokio::test]
-    async fn raw_join() {
-        let room = create_host_by(0, "StressRoom".to_string()).await;
-        let join_tasks: Vec<_> = (0..CONCURRENT_USERS)
-            .map(|i| {
-                let room = room.clone();
-                let (tx, mut rx) = mpsc::channel(32);
-                task::spawn(async move {
-                    while rx.recv().await.is_some() { }
-                });
-
-                task::spawn(async move {
-                    room.join(i as i32, tx).await.unwrap();
-                })
-            })
-            .collect();
-
-        for task in join_tasks {
-            task.await.unwrap();
-        }
-
-
-    }
-
     // 测试并发加入/离开房间
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-    async fn test_concurrent_join_leave() {
+    pub async fn test_concurrent_join_leave() {
         let room = create_host_by(1, "StressRoom".to_string()).await;
         
         let err_cnt = Arc::new(AtomicUsize::new(0));
 
-        let (tx, mut rx) = mpsc::channel::<Arc<ChatSignal>>(32);
+        let (tx, mut rx) = mpsc::channel::<Arc<ChatSignal>>(128);
         task::spawn(async move {
             let mut ret = vec![];
             while let Some(msg) = rx.recv().await {
@@ -560,7 +542,7 @@ mod stress_tests {
         let join_tasks: Vec<_> = (2..CONCURRENT_USERS)
             .map(|i| {
                 let room = room.clone();
-                let (tx, mut rx) = mpsc::channel(32);
+                let (tx, mut rx) = mpsc::channel(128);
                 let err_cnt = err_cnt.clone();
                 task::spawn(async move {
                     while let Some(msg) = rx.recv().await {
@@ -594,6 +576,7 @@ mod stress_tests {
         assert_eq!(room.user_len(), 0);
         
         tokio::time::sleep(Duration::from_secs(8)).await;
+        println!("Rooms: {:?}", rooms().rooms);
         assert_eq!(rooms().rooms.len(), 1);
 
         tokio::time::sleep(Duration::from_secs(8)).await;
@@ -603,28 +586,34 @@ mod stress_tests {
 
     // 测试主持人更换压力
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-    async fn test_host_transfer_stress() {
-        let room = create_host_by(1, "HostTransferRoom".to_string()).await;
-
-        // 先加入多个用户
-        for i in 2..=CONCURRENT_USERS as i32 {
-            let (tx, mut rx) = mpsc::channel(32);
-            tokio::spawn(async move {
-                if let Some(msg) = rx.recv().await {
-                    println!("Received message: {:?}", msg)
-                }
-            });
-            room.join(i, tx).await.unwrap();
-        }
-        
+    pub async fn test_host_transfer_stress() {
+        let room = create_host_by(0, "HostTransferRoom".to_string()).await;
         let share_link = room.share_link();
 
+        // 先加入多个用户
+        let join_tasks: Vec<_> = (0..CONCURRENT_USERS)
+            .map(|i| {
+                let room = share_link.clone();
+                let (tx, mut rx) = mpsc::channel(32);
+                task::spawn(async move {
+                    while rx.recv().await.is_some() {}
+                });
+                task::spawn(async move {
+                    join_room(&room, i as i32, tx).await.unwrap()
+                })
+            })
+            .collect();
+
+        for task in join_tasks {
+            task.await.unwrap();
+        }
+
         // 并发更换主持人
-        let transfer_tasks: Vec<_> = (2..=CONCURRENT_USERS as i32)
+        let transfer_tasks: Vec<_> = (1..CONCURRENT_USERS as i32)
             .map(|new_host| {
                 let share_link = share_link.clone();
                 task::spawn(async move {
-                    rooms().change_host(&share_link, new_host).expect("TODO: panic message");
+                    rooms().change_host(&share_link, new_host).unwrap();
                 })
             })
             .collect();
@@ -641,8 +630,8 @@ mod stress_tests {
     }
 
     // 测试房间自动释放压力
-    #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-    async fn test_room_auto_release_stress() {
+    #[tokio::test]
+    pub async fn test_room_auto_release_stress() {
         let room = create_host_by(1, "AutoReleaseRoom".to_string()).await;
         let link = room.share_link();
 

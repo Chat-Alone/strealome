@@ -6,8 +6,7 @@ mod service;
 use std::sync::{Arc};
 use chrono::Duration;
 use tokio::task::JoinHandle;
-use repository::{ Repo, RepoConfig };
-use crate::repository::Repository;
+use repository::{ Repo, RepoConfig, Repository };
 
 
 static REPO_CFG: RepoConfig = RepoConfig {
