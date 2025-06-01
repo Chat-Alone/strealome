@@ -221,17 +221,17 @@ impl Rooms {
     /// 
     /// **make sure room_link is not a ref of a Vec<String> in self.hosts**
     fn change_host(&self, room_link: &str, new_host_id: i32) -> Result<i32, RoomError> {
-        let ret = RwLock::new(Ok(new_host_id));
+        let mut ret = Ok(new_host_id);
         
         self.rooms.entry(room_link.to_string()).and_modify(|room| {
             let old_host_id = room.host_id.load(Ordering::SeqCst);
             
             if new_host_id == old_host_id {
-                *ret.write().unwrap() = Err(RoomError::UserAlreadyHosting);
+                ret = Err(RoomError::UserAlreadyHosting);
                 return
             }
-            if room.contains_user(new_host_id).is_err() {
-                *ret.write().unwrap() = Err(RoomError::UserNotInRoom);
+            if let Err(e) = room.contains_user(new_host_id) {
+                ret = Err(e);
                 return
             }
             
@@ -249,7 +249,7 @@ impl Rooms {
         });
 
 
-        ret.into_inner().unwrap()
+        ret
     }
 
     /// **make sure room_link is not a ref of a Vec<String> in self.hosts**
@@ -301,6 +301,10 @@ pub fn rooms() -> Rooms {
 
 pub fn get_room_by_link(room_link: &str) -> Result<Room, RoomError> {
     rooms().get_room_by_link(room_link)
+}
+
+pub fn contains_user(room_link: &str, user_id: i32) -> Result<(), RoomError> {
+    rooms().get_room_by_link(room_link).and_then(|r| r.contains_user(user_id))
 }
 
 // TODO !handle duplicate!
@@ -370,6 +374,10 @@ async fn stop_release_task(room_link: String) -> Result<(), RoomError> {
     };
     
     Ok(())
+}
+
+pub async fn change_host(room_link: &str, new_host_id: i32) -> Result<i32, RoomError> {
+    rooms().change_host(room_link, new_host_id)
 }
 
 pub async fn change_room_name(room_link: &str, name: String)  -> Result<(), RoomError> {
