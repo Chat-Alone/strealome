@@ -825,8 +825,6 @@
             if (isPinching) e.preventDefault();
         }, { passive: false });
 
-        var loggedInUserId = null;
-
         $(document).ready(function () {
             let ws = null;
             let currentRoomId = null;
@@ -1400,7 +1398,7 @@
 
             function addMessageToChat(message, username = null, userId = null, timestamp = null, isHost = false) {
                 const usernameFinal = username || $('#username').text();
-                const userIdFinal = userId || loggedInUserId;
+                const userIdFinal = userId || currentLoggedInUserId;
                 const now = timestamp ? new Date(timestamp) : new Date();
                 const time = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -1672,15 +1670,17 @@
 
                         const currentUsername = $('#username').text();
                         currentLoggedInUserId = null;
+                        const loggedInUserObject = users.find(user => user.name === currentUsername);
+                        if (loggedInUserObject) {
+                            currentLoggedInUserId = loggedInUserObject.id;
+                        } else {
+                            console.warn('列表中找不到当前用户。');
+                        }
 
                         const viewerHTMLs = [];
                         cachedUsers.clear();
 
                         users.forEach(user => {
-                            if (user.name === currentUsername) {
-                                currentLoggedInUserId = user.id;
-                            }
-
                             const isUserHost = (hostUserId !== null && user.id === hostUserId);
 
                             cachedUsers.set(user.id, {
@@ -1691,8 +1691,8 @@
 
                             const initials = user.name.charAt(0).toUpperCase();
                             const userColor = getUserColor(user.id);
-                            const statusClass = isUserHost 
-                                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' 
+                            const statusClass = isUserHost
+                                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
                                 : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
                             const statusText = isUserHost ? 'Host' : 'Online';
 
