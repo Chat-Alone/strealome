@@ -999,7 +999,7 @@
                                         addMessageToChat(
                                             eventData.content,
                                             authorUsername,
-                                            String(eventData.author_id),
+                                            eventData.author_id,
                                             eventData.created_at,
                                             authorIsHost
                                         );
@@ -1400,12 +1400,13 @@
 
             function addMessageToChat(message, username = null, userId = null, timestamp = null, isHost = false) {
                 const usernameFinal = username || $('#username').text();
+                const userIdFinal = userId || loggedInUserId;
                 const now = timestamp ? new Date(timestamp) : new Date();
                 const time = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                 const initials = usernameFinal.charAt(0).toUpperCase();
 
-                const userColor = getUserColor(userId);
+                const userColor = getUserColor(userIdFinal);
 
                 const isEmojiOnly = isEmojiOnlyMessage(message);
                 const isLong = isLongMessage(message);
@@ -1690,8 +1691,9 @@
 
                             const initials = user.name.charAt(0).toUpperCase();
                             const userColor = getUserColor(user.id);
-
-                            const statusClass = isUserHost ? 'bg-blue-100 dark:bg-blue-900 dark:text-blue-200' : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+                            const statusClass = isUserHost 
+                                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' 
+                                : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
                             const statusText = isUserHost ? 'Host' : 'Online';
 
                             let transferButtonHTML = '';
@@ -1702,26 +1704,26 @@
                                         title="转移所有权给 ${user.name}"
                                         aria-label="将所有权转移给 ${user.name}"
                                         data-userid="${user.id}"
-                                        data-username="${user.name.replace(/"/g, '')}"
-                                        class="transfer-ownership-btn ml-1 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] focus-visble:outline-none focus-visble:ring-2 focus-visble:ring-[var(--accent-color)] focus-visble:ring-offset-1 dark:focus-visble:ring-offset-[var(--primary-bg)] transition-colors"
+                                        data-username="${user.name.replace(/"/g, '&quot;')}"
+                                        class="transfer-ownership-btn ml-1 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-[var(--primary-bg)] transition-colors"
                                     >
                                         <i class="fas fa-crown w-4 h-4 pointer-events-none"></i>
                                     </button>
-                                `
+                                `;
                             }
 
                             viewerHTMLs.push(`
-                                <div class="flex items-center justify-between p-2 hover:bg-[--hover-bg] rounded-lg">
-                                    <div class="flex items-center gap-2 overflow-hidden">
-                                        <div class="w-7 h-7 rounded-full ${userColor} flex-shrink-0 flex item-center text-white text-sm font-medium">
+                                <div class="flex items-center justify-between p-2 hover:bg-[var(--hover-bg)] rounded">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-full ${userColor} flex items-center justify-center text-white text-sm font-medium">
                                             ${initials}
                                         </div>
-                                        <span class="text-[var(--text-primary)] truncate" title=${user.name}>
+                                        <span title="${user.name}">
                                             ${user.name}
                                         </span>
                                     </div>
-                                    <div class="flex items-center gap-1 flex-shrink-0>
-                                        <span class="text-xs ${statusClass} px-1.5 py-0.5 rounded-full font-medium">${statusText}</span>
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-xs ${statusClass} px-1.5 py-0.5 rounded">${statusText}</span>
                                         ${transferButtonHTML}
                                     </div>
                                 </div>
