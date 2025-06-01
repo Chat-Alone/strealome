@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use crate::controller::Response;
 use super::{room, user, Repository};
-use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent};
+use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent, Payload as ChatPayload};
 
 const MPSC_BUF_SIZE: usize = 32;
 
@@ -57,17 +57,19 @@ pub async fn handle_websocket(
     let recv_fut = async move {
         while let Some(Ok(msg)) = recver.next().await {
             println!("recv: {:?}", msg);
-            // if let Message::Text(text) = msg {
-            //     if let Ok(content) = serde_json::from_str::<ChatMessageContent>(&text) {
-            //         room.sync_message(user.id, content).await?;
-            //     } else {
-            //         // TODO! 
-            //         println!("bad message: {}", text);
-            //         _tx.send(Arc::new(ChatMessage::new(user.id, room_link.clone(), 
-            //             ChatMessageContent::Text("发的不对你这个".to_string())))
-            //         ).await.map_err(|_| ChatError::InternalError)?;
-            //     }
-            // }
+            match msg {
+                Message::Text(text) => {
+                    if let Ok(signal) = serde_json::from_str::<ChatSignal>(&text) {
+                        if let Some(ret) = ping_pong(&signal) {
+                            if let Err(e) = _tx.send(Arc::new(ret)).await {
+                                eprintln!("send error: {:?}", e)
+                            }
+                        }
+                    }
+                },
+                Message::Close(_) => break,
+                _ => {}
+            }
         }
         Ok(())
     };
@@ -108,4 +110,11 @@ pub async fn send_message(repo: Arc<dyn Repository>, user_id: i32, room_link: St
     let user = user::get_user_by_id(repo, user_id).await?;
     room::send_message(user.id, room_link, content).await?;
     Ok(())
+}
+
+fn ping_pong(signal: &ChatSignal) -> Option<ChatSignal> {
+    match signal.payload() {
+        ChatPayload::Ping(ping) => Some(ChatPayload::pong(ping)),
+        _ => None,
+    }.map(|payload| ChatSignal::sys(1919810, payload))
 }

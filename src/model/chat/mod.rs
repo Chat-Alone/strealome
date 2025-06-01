@@ -4,7 +4,7 @@ mod message;
 mod author;
 mod signal;
 
-pub use signal::{Signal, Event, Message};
+pub use signal::{Signal, Event, Message, Payload};
 pub use author::Author;
 // pub use message::{Message, MessagePayload};
 

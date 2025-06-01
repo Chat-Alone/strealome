@@ -29,8 +29,16 @@ impl Signal {
         }
     }
     
+    pub fn sys(id: i32, payload: Payload) -> Self {
+        Self::new(id, Author::System, payload)
+    }
+    
     pub fn event(id: i32, author: Author, event: Event) -> Self {
         Self::new(id, author, Payload::Event(event))
+    }
+    
+    pub fn payload(&self) -> &Payload {
+        &self.payload
     }
     
     pub fn author(&self) -> Author {
@@ -51,6 +59,12 @@ pub enum Payload {
     Pong(Pong),
     #[serde(rename = "4")]
     Event(Event),
+}
+
+impl Payload {
+    pub fn pong(ping: &Ping) -> Self {
+        Self::Pong(Pong::new(ping.id, ping.sn))
+    }
 }
 
 #[test]
