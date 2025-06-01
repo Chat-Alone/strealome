@@ -401,7 +401,6 @@
             border-color: var(--focus-ring);
         }
 
-        #settingsBtn:focus,
         #themeToggle:focus {
             outline: 2px solid var(--focus-ring);
             outline-offset: 3px;
@@ -440,45 +439,6 @@
         .volume-slider:focus::-moz-range-thumb {
             box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
             transform: scale(1.2);
-        }
-
-        #settingsModal button:focus {
-            outline: 2px solid var(--focus-ring);
-            outline-offset: 2px;
-            box-shadow: 0 0 0 3px var(--focus-shadow);
-        }
-
-        #closeSettingsBtn:focus,
-        .close-btn:focus {
-            outline: 2px solid var(--focus-ring);
-            outline-offset: 2px;
-            background-color: var(--hover-bg);
-            color: var(--text-primary);
-            transform: scale(1.1);
-            transition: all 0.15s ease-in-out;
-        }
-
-        #closeSettingsBtn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.15s ease-in-out;
-        }
-
-        #closeSettingsBtn:hover {
-            background-color: var(--hover-bg);
-            transform: scale(1.05);
-        }
-
-        #closeSettingsBtn:focus {
-            outline: 2px solid var(--focus-ring);
-            outline-offset: 2px;
-            background-color: var(--hover-bg);
-            transform: scale(1.1);
-            box-shadow: 0 0 0 3px var(--focus-shadow);
         }
 
         .toast-notification .close-btn {
@@ -675,63 +635,6 @@
         <button class="close-btn" tabindex="0">&times;</button>
     </div>
 
-    <div id="settingsModal" class="fixed inset-0 flex items-center justify-center z-50 hidden">
-        <div class="fixed inset-0 bg-black opacity-50" id="settingsOverlay"></div>
-        <div class="bg-[var(--primary-bg)] rounded-lg shadow-lg p-6 w-full max-w-md z-10 relative">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold">用户设置</h3>
-                <button class="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xl" tabindex="0"
-                    id="closeSettingsBtn">
-                    &times;
-                </button>
-            </div>
-
-            <form id="settingsForm" class="space-y-4">
-                <div class="space-y-2">
-                    <h4 class="font-medium">修改用户名</h4>
-                    <div class="space-y-2">
-                        <input type="text" id="newUsername" placeholder="新用户名" tabindex="0"
-                            class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
-                        <p id="usernameError" class="text-red-500 text-xs hidden">用户名必须是4-24个字节</p>
-                    </div>
-                </div>
-
-                <div class="space-y-2">
-                    <h4 class="font-medium">修改密码</h4>
-                    <div class="space-y-2">
-                        <input type="password" id="newPassword" placeholder="新密码" tabindex="0"
-                            class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
-                        <input type="password" id="confirmPassword" placeholder="确认新密码" tabindex="0"
-                            class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
-                        <div class="space-y-1">
-                            <p id="passwordLengthError" class="text-red-500 text-xs hidden">长度必须在8~32位之间</p>
-                            <p id="passwordCharError" class="text-red-500 text-xs hidden">只能包含ASCII字母和数字</p>
-                            <p id="passwordComboError" class="text-red-500 text-xs hidden">必须同时包含至少一个字母和一个数字</p>
-                        </div>
-                        <p id="confirmError" class="text-red-500 text-xs hidden">两次输入的密码不一致</p>
-                    </div>
-                </div>
-
-                <div class="pt-2 border-t border-solid border-[var(--border-color)]">
-                    <p class="text-sm text-[var(--text-secondary)] mb-2">请输入当前密码以确认更改</p>
-                    <input type="password" id="currentPassword" placeholder="当前密码" required tabindex="0"
-                        class="w-full px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]">
-                    <p id="currentPasswordError" class="text-red-500 text-xs hidden">请输入当前密码</p>
-                </div>
-
-                <div class="flex justify-end pt-4">
-                    <button type="button" id="cancelSettingsBtn" tabindex="0"
-                        class="mr-2 px-4 py-2 border border-solid border-[var(--border-color)] rounded text-[var(--text-secondary)] hover:bg-[var(--hover-bg)]">
-                        取消
-                    </button>
-                    <button type="submit" id="saveSettingsBtn" tabindex="0"
-                        class="px-4 py-2 bg-[var(--accent-color)] text-white rounded hover:bg-blue-600">
-                        保存更改
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
     <div id="successToast" class="toast-notification">
         <i class="fas fa-check-circle icon text-green-500"></i>
         <span id="successMessage">操作成功!</span>
@@ -787,10 +690,7 @@
                         class="hidden sm:inline">登出</span>
                 </button>
             </div>
-            <button id="settingsBtn" tabindex="0" aria-label="打开用户设置"
-                class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0 ml-1">
-                <i class="fas fa-cog text-[var(--icon-color)]" aria-hidden="true"></i>
-            </button>
+
             <button id="themeToggle" tabindex="0" aria-label="切换主题"
                 class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0 ml-1">
                 <i id="themeIcon" class="fas fa-moon text-[var(--icon-color)]" aria-hidden="true"></i>
@@ -925,11 +825,21 @@
             if (isPinching) e.preventDefault();
         }, { passive: false });
 
+        var loggedInUserId = null;
+
         $(document).ready(function () {
             let ws = null;
             let currentRoomId = null;
             let cachedUsers = new Map();
             let hostUserId = null;
+            let currentLoggedInUserId = null;
+
+            const HEARTBEAT_INTERVAL = 30000;
+            const PONG_TIMEOUT = 10000;
+            let heartbeatIntervalId = null;
+            let pongTimeoutId = null;
+            let pingMessageIdCounter = 0;
+            let pingSequenceNumberCounter = 0;
 
             function getRoomIdFromUrl() {
                 const pathParts = window.location.pathname.split('/');
@@ -1023,20 +933,29 @@
                 const wsUrl = `wss://${window.location.host}/ws/chat/${roomId}?token=${encodeURIComponent(token)}`;
                 console.log('尝试连接WebSocket:', wsUrl);
 
-                ws = new WebSocket(wsUrl); ws.onopen = async function () {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = async function () {
                     console.log('WebSocket连接已打开');
+                    hideToast('#warningToast');
                     showSuccessToast('实时聊天连接成功。');
                     const gotHostId = await fetchRoomDetailAndHostId();
                     if (!gotHostId) {
                         console.warn('无法获取房间详情，主播ID可能为null。');
                     }
                     await fetchViewersList();
+                    startHeartbeat();
                 };
 
                 ws.onmessage = async function (event) {
                     console.log('收到WebSocket消息:', event.data);
                     try {
                         const messageData = JSON.parse(event.data);
+
+                        if (messageData && messageData.t === "3") {
+                            clearTimeout(pongTimeoutId);
+                            return;
+                        }
 
                         if (messageData && messageData.p && messageData.p.ev) {
                             const eventPayload = messageData.p;
@@ -1118,21 +1037,42 @@
 
                 ws.onclose = function (event) {
                     console.warn('WebSocket连接已关闭:', event);
+                    stopHeartbeat();
+                    ws = null;
+
                     let reasonMsg = 'WebSocket连接已断开。';
+                    let shouldReconnect = false;
+                    let reconnectDelay = 5000;
+
                     if (event.reason) {
                         reasonMsg += `原因: ${event.reason}`;
-                    } if (event.code === 1000) {
+                    }
+
+                    if (event.code === 1000 && event.reason === "Pong timeout") {
+                        reasonMsg += '正在尝试重新连接...';
+                        showWarningToast(reasonMsg, -1);
+                        shouldReconnect = true;
+                    } else if (event.code === 1000) {
                         // 正常关闭
                     } else if (event.code === 4004) {
                         reasonMsg = '房间不存在或无法加入。';
                         showErrorToast(reasonMsg);
+                        $('messageInput').prop('disabled', true).attr('placeholder', '无法连接到聊天。');
+                        $('#sendMessageBtn').prop('disabled', true);
                     } else if (event.code >= 4000 && event.code < 5000) {
                         reasonMsg = `连接错误：${event.reason || '未知错误(代码: ${event.code})'}`;
                         showErrorToast(reasonMsg);
+                        $('messageInput').prop('disabled', true).attr('placeholder', '无法连接到聊天。');
+                        $('#sendMessageBtn').prop('disabled', true);
                     } else {
-                        showErrorToast(reasonMsg);
+                        reasonMsg += '将在5s后尝试重新连接...';
+                        showErrorToast(reasonMsg, 5000);
+                        shouldReconnect = true;
                     }
-                    ws = null;
+
+                    if (shouldReconnect) {
+                        setTimeout(initilizeWebSocketConnection, reconnectDelay);
+                    }
                 };
 
                 ws.onerror = function (error) {
@@ -1143,6 +1083,10 @@
             }
 
             async function initilizeWebSocketConnection() {
+                if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                    return;
+                }
+
                 currentRoomId = getRoomIdFromUrl();
                 if (!currentRoomId) {
                     console.error('无法获取房间ID，无法连接WebSocket。');
@@ -1168,9 +1112,7 @@
 
                 $(document).on('keydown', function (e) {
                     if (e.key === 'Escape') {
-                        if ($('#settingsModal').is(':visible')) {
-                            closeSettingsModal();
-                        } else if ($('#keyboardHint').hasClass('show')) {
+                        if ($('#keyboardHint').hasClass('show')) {
                             $('#keyboardHint').removeClass('show');
                         }
                     }
@@ -1182,28 +1124,6 @@
                         setTimeout(() => {
                             $('#keyboardHint').removeClass('show');
                         }, 3000);
-                    }
-                });
-
-                $(document).on('keydown', function (e) {
-                    if (e.key === 'Tab') {
-                        if ($('#settingsModal').is(':visible')) {
-                            const focusableElements = $('#settingsModal').find('input, button, [tabindex="0"]').filter(':visible');
-                            const firstElement = focusableElements.first();
-                            const lastElement = focusableElements.last();
-
-                            if (e.shiftKey) {
-                                if ($(document.activeElement).is(firstElement)) {
-                                    e.preventDefault();
-                                    lastElement.focus();
-                                }
-                            } else {
-                                if ($(document.activeElement).is(lastElement)) {
-                                    e.preventDefault();
-                                    firstElement.focus();
-                                }
-                            }
-                        }
                     }
                 });
 
@@ -1585,325 +1505,8 @@
                         window.location.href = '/';
                     })
                     .catch(error => {
-                        // TODO
                         alert(error);
                     })
-
-            });
-
-            const settingsModal = $('#settingsModal');
-            const settingsOverlay = $('#settingsOverlay');
-            const closeSettingsBtn = $('#closeSettingsBtn');
-            const cancelSettingsBtn = $('#cancelSettingsBtn');
-            const settingsForm = $('#settingsForm');
-
-            $('#settingsBtn').on('click', function () {
-                resetSettingsForm();
-                settingsModal.removeClass('hidden');
-            });
-
-            function closeSettingsModal() {
-                settingsModal.addClass('hidden');
-                resetSettingsForm();
-                const modalContent = settingsModal.find('.rounded-lg');
-                if (modalContent.length > 0) {
-                    modalContent.removeClass('modal-animate-in');
-                    modalContent.removeClass('modal-animate-out');
-                }
-            }
-
-            $('#closeSettingsBtn').on('click', function () {
-                closeSettingsModal();
-            });
-
-            $('#cancelSettingsBtn').on('click', function () {
-                closeSettingsModal();
-            });
-
-            $('#settingsOverlay').on('click', function () {
-                closeSettingsModal();
-            });
-
-            function resetSettingsForm() {
-                if (settingsForm && settingsForm.length > 0) {
-                    settingsForm[0].reset();
-                    $('.text-red-500').addClass('hidden');
-                }
-            }
-
-            const textEncoder = new TextEncoder();
-            function validateUsername(username) {
-                let len = textEncoder.encode(username).length;
-                return len >= 4 && len <= 24;
-            }
-
-            function validatePassword(password) {
-                const result = {
-                    isValid: true,
-                    errors: []
-                };
-
-                if (password.length < 8 || password.length > 32) {
-                    result.isValid = false;
-                    result.errors.push('length');
-                }
-
-                if (!/^[a-zA-Z0-9]+$/.test(password)) {
-                    result.isValid = false;
-                    result.errors.push('chars');
-                }
-
-                const hasLetter = /[a-zA-Z]/.test(password);
-                const hasNumber = /[0-9]/.test(password);
-                if (!hasLetter || !hasNumber) {
-                    result.isValid = false;
-                    result.errors.push('combo');
-                }
-
-                return result;
-            }
-
-            $('#newUsername').on('input', function () {
-                const username = $(this).val().trim();
-                const errorElem = $('#usernameError');
-
-                if (username && !validateUsername(username)) {
-                    errorElem.removeClass('hidden');
-                } else {
-                    errorElem.addClass('hidden');
-                }
-            }); $('#newPassword, #confirmPassword').on('input', function () {
-                const password = $('#newPassword').val();
-                const confirmPassword = $('#confirmPassword').val();
-
-                $('#passwordLengthError').addClass('hidden');
-                $('#passwordCharError').addClass('hidden');
-                $('#passwordComboError').addClass('hidden');
-                $('#confirmError').addClass('hidden');
-
-                if (password) {
-                    const validation = validatePassword(password);
-                    if (!validation.isValid) {
-                        validation.errors.forEach(error => {
-                            if (error === 'length') {
-                                $('#passwordLengthError').removeClass('hidden');
-                            } else if (error === 'chars') {
-                                $('#passwordCharError').removeClass('hidden');
-                            } else if (error === 'combo') {
-                                $('#passwordComboError').removeClass('hidden');
-                            }
-                        });
-                    }
-                }
-
-                if (confirmPassword && password !== confirmPassword) {
-                    $('#confirmError').removeClass('hidden');
-                }
-            });
-
-            settingsForm.on('submit', async function (e) {
-                /*
-                * 用户个人资料更新 API 交互说明:
-                *
-                * 目的:            允许用户更新其用户名和/或密码。
-                * API 端点:        /user/profile
-                * HTTP 方法:       PUT
-                * 认证方式:        JWT (在 Authorization 头部中携带 Bearer Token, Token 从 localStorage['authToken'] 获取)
-                *
-                * 请求体 (Content-Type: application/json):
-                *   {
-                *     "currentPassword": "当前用户密码",     // 必填
-                *     "newUsername": "可选的新用户名",       // 可选, 如果提供且有效则发送
-                *     "newPassword": "可选的新密码"          // 可选, 如果提供且有效则发送
-                *   }
-                *
-                * 成功响应 (HTTP 状态码 2xx, 并且响应体中 "success": true, Content-Type: application/json):
-                *   {
-                *     "id": 123,
-                *     "success": true,
-                *     "payload": { // payload 可能为 null，或者不包含 message/user
-                *       "message": "描述性成功消息，例如 '用户名已更新'", // 可选
-                *       "user": { // 可选, 仅当用户名更新且后端决定返回时
-                *         "username": "更新后的用户名"
-                *       }
-                *     },
-                *     "created_at": "YYYY-MM-DDTHH:mm:ss.sssZ"
-                *   }
-                *   - 'payload.message' (如果存在且非空) 将用于提示框。
-                *   - 'payload.user.username' (如果存在) 将更新界面用户名。
-                *
-                * 逻辑失败响应 (HTTP 状态码 2xx, 但响应体中 "success": false, Content-Type: application/json):
-                *   {
-                *     "id": 456,
-                *     "success": false,
-                *     "payload": { // payload 可能为 null, 或不包含 error/message
-                *       "error": "具体的错误信息 (优先于 payload.message)",   // 可选
-                *       "message": "具体的错误信息 (若 payload.error 无)"     // 可选
-                *     },
-                *     // 或者错误信息在顶层:
-                *     "error": "具体的错误信息 (若payload中无, 优先于顶层message)", // 可选
-                *     "message": "具体的错误信息 (若payload和顶层error中无)",       // 可选
-                *     "created_at": "YYYY-MM-DDTHH:mm:ss.sssZ"
-                *   }
-                *   - 错误信息查找顺序: `payload.error`, `payload.message`, `error` (顶层), `message` (顶层).
-                *   - 如果上述字段均无有效错误信息，则显示 "操作失败，但未收到具体错误详情。"
-                *
-                * HTTP/网络错误响应 (HTTP 状态码非 2xx):
-                *   - 响应体结构不确定，可能包含上述错误信息字段，也可能无有效 JSON 体。
-                *   - 将尝试从响应体中提取错误信息，否则显示通用的HTTP错误提示。
-                */
-                e.preventDefault();
-
-                const newUsername = $('#newUsername').val().trim();
-                const newPassword = $('#newPassword').val();
-                const confirmPassword = $('#confirmPassword').val();
-                const currentPasswordValue = $('#currentPassword').val();
-
-                let hasError = false;
-                $('#usernameError').addClass('hidden');
-                $('#passwordLengthError').addClass('hidden');
-                $('#passwordCharError').addClass('hidden');
-                $('#passwordComboError').addClass('hidden');
-                $('#confirmError').addClass('hidden');
-                $('#currentPasswordError').addClass('hidden');
-
-                if (!currentPasswordValue) {
-                    $('#currentPasswordError').removeClass('hidden');
-                    hasError = true;
-                }
-
-                if (newUsername && !validateUsername(newUsername)) {
-                    $('#usernameError').removeClass('hidden');
-                    hasError = true;
-                }
-
-                if (newPassword) {
-                    const validation = validatePassword(newPassword);
-                    if (!validation.isValid) {
-                        validation.errors.forEach(error => {
-                            if (error === 'length') {
-                                $('#passwordLengthError').removeClass('hidden');
-                            } else if (error === 'chars') {
-                                $('#passwordCharError').removeClass('hidden');
-                            } else if (error === 'combo') {
-                                $('#passwordComboError').removeClass('hidden');
-                            }
-                        });
-                        hasError = true;
-                    }
-                    if (newPassword !== confirmPassword) {
-                        $('#confirmError').removeClass('hidden');
-                        hasError = true;
-                    }
-                }
-
-                if (hasError) return;
-
-                const updateData = { currentPassword: currentPasswordValue };
-                if (newUsername) {
-                    updateData.newUsername = newUsername;
-                }
-                if (newPassword) {
-                    updateData.newPassword = newPassword;
-                }
-
-                $('#saveSettingsBtn').prop('disabled', true).addClass('opacity-50 cursor-not-allowed');
-
-                try {
-                    const token = localStorage.getItem('authToken');
-                    if (!token) {
-                        showErrorToast('用户未登录或会话已过期，请重新登录。');
-                        $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
-                        return;
-                    }
-
-                    const response = await fetch('/user/profile', {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify(updateData)
-                    });
-
-                    let data = null;
-                    try {
-                        data = await response.json();
-                    } catch (jsonError) {
-                        console.warn('未能解析服务器响应的JSON:', jsonError, '响应状态:', response.status);
-                    }
-
-                    if (response.ok && data && data.success === true) {
-                        let successMsg = '用户信息更新成功！';
-                        if (data.payload && typeof data.payload.message === 'string' && data.payload.message.trim() !== '') {
-                            successMsg = data.payload.message;
-                        }
-
-                        if (data.payload?.user && typeof data.payload.user?.username === 'string') {
-                            $('#username').text(data.payload.user.username);
-                        }
-                        closeSettingsModal();
-                        showSuccessToast(successMsg);
-                    } else {
-                        let errorMsg = '更新失败，请稍后重试。';
-
-                        if (!response.ok) {
-                            // HTTP 错误 (非 2xx)
-                            errorMsg = `请求失败 (状态码: ${response.status})。`;
-                            let specificErrorFromBody = '';
-                            if (data) { // 尝试从可能存在的JSON响应体中获取更具体错误
-                                if (data.payload && typeof data.payload === 'object') {
-                                    if (typeof data.payload.error === 'string' && data.payload.error.trim() !== '') specificErrorFromBody = data.payload.error;
-                                    else if (typeof data.payload.message === 'string' && data.payload.message.trim() !== '') specificErrorFromBody = data.payload.message;
-                                }
-                                if (!specificErrorFromBody) {
-                                    if (typeof data.error === 'string' && data.error.trim() !== '') specificErrorFromBody = data.error;
-                                    else if (typeof data.message === 'string' && data.message.trim() !== '') specificErrorFromBody = data.message;
-                                }
-                            }
-                            if (specificErrorFromBody) {
-                                errorMsg += ` 详情: ${specificErrorFromBody}`;
-                            }
-                            errorMsg += ' 请检查网络或稍后重试。';
-                        } else if (data === null) { // HTTP OK, 但JSON解析失败
-                            errorMsg = `服务器响应格式错误 (状态码: ${response.status})。请稍后重试。`;
-                        } else if (data.success === false) { // HTTP OK, JSON已解析, 业务逻辑失败 (success: false)
-                            let specificBusinessErrorFound = false;
-                            // payload.error
-                            if (data.payload && typeof data.payload === 'object' && typeof data.payload.error === 'string' && data.payload.error.trim() !== '') {
-                                errorMsg = data.payload.error;
-                                specificBusinessErrorFound = true;
-                            }
-                            // payload.message
-                            if (!specificBusinessErrorFound && data.payload && typeof data.payload === 'object' && typeof data.payload.message === 'string' && data.payload.message.trim() !== '') {
-                                errorMsg = data.payload.message;
-                                specificBusinessErrorFound = true;
-                            }
-                            // 顶层error
-                            if (!specificBusinessErrorFound && typeof data.error === 'string' && data.error.trim() !== '') {
-                                errorMsg = data.error;
-                                specificBusinessErrorFound = true;
-                            }
-                            // 顶层message
-                            if (!specificBusinessErrorFound && typeof data.message === 'string' && data.message.trim() !== '') {
-                                errorMsg = data.message;
-                                specificBusinessErrorFound = true;
-                            }
-                            // 通用业务失败消息
-                            if (!specificBusinessErrorFound) {
-                                errorMsg = '操作失败，但未收到具体错误详情。';
-                            }
-                        } else if (!data.hasOwnProperty('success')) { // HTTP OK, JSON已解析, 但缺少 'success' 字段
-                            errorMsg = '服务器响应无效 (缺少success字段)。请稍后重试。';
-                        }
-                        showErrorToast(errorMsg);
-                    }
-                } catch (networkError) {
-                    console.error('用户设置更新网络请求失败:', networkError);
-                    showErrorToast('网络连接错误，请检查您的网络并稍后重试。');
-                } finally {
-                    $('#saveSettingsBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
-                }
             });
 
             const isLiveStreaming = true;
@@ -1975,24 +1578,14 @@
                     viewerCountOverlay.show();
 
                     streamContainer.removeClass('offline-stream');
-
-                    // TODO: 在生产环境中删除测试数据调用，使用真实数据
-                    addTestViewers();
                 }
             }
 
-            // 格式化时间为 HH:MM:SS
             function formatTime(seconds) {
                 const h = Math.floor(seconds / 3600);
                 const m = Math.floor((seconds % 3600) / 60);
                 const s = Math.floor(seconds % 60);
                 return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-            }
-
-            // TODO: 后端集成API
-            function fetchStreamData() {
-                // TODO: 对接直播流获取API
-                // 应包含直播间标题、状态、观众数、直播时长等信息
             }
 
             async function getUserDetails(userId) {
@@ -2058,6 +1651,7 @@
             async function fetchViewersList() {
                 if (!currentRoomId) {
                     console.error('当前直播间ID未设置，无法获取观众列表。');
+                    $('#viewersList').empty().append('<p class="text-center text-[var(--text-secondary)]]">无法加载房间列表。</p>')
                     return;
                 }
                 console.log('Fetching viewers list for room:', currentRoomId);
@@ -2074,30 +1668,75 @@
                     const data = await response.json();
                     if (data.success && data.payload && data.payload.users) {
                         const users = data.payload.users;
-                        $('#viewersList').empty();
+
+                        const currentUsername = $('#username').text();
+                        currentLoggedInUserId = null;
+
+                        const viewerHTMLs = [];
                         cachedUsers.clear();
 
                         users.forEach(user => {
-                            const isHost = (hostUserId !== null && user.id === hostUserId);
-                            const viewerData = {
-                                userId: user.id,
-                                username: user.name,
-                                status: user.status || 'online',
-                                isHost: isHost
-                            };
-                            
+                            if (user.name === currentUsername) {
+                                currentLoggedInUserId = user.id;
+                            }
+
+                            const isUserHost = (hostUserId !== null && user.id === hostUserId);
+
                             cachedUsers.set(user.id, {
                                 id: user.id,
                                 username: user.name,
-                                isHost: isHost,
-                                createdAt: user.created_at
+                                isHost: isUserHost
                             });
 
-                            addViewerToList(viewerData);
+                            const initials = user.name.charAt(0).toUpperCase();
+                            const userColor = getUserColor(user.id);
+
+                            const statusClass = isUserHost ? 'bg-blue-100 dark:bg-blue-900 dark:text-blue-200' : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+                            const statusText = isUserHost ? 'Host' : 'Online';
+
+                            let transferButtonHTML = '';
+
+                            if (currentLoggedInUserId && hostUserId && currentLoggedInUserId === hostUserId && !isUserHost) {
+                                transferButtonHTML = `
+                                    <button
+                                        title="转移所有权给 ${user.name}"
+                                        aria-label="将所有权转移给 ${user.name}"
+                                        data-userid="${user.id}"
+                                        data-username="${user.name.replace(/"/g, '')}"
+                                        class="transfer-ownership-btn ml-1 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] focus-visble:outline-none focus-visble:ring-2 focus-visble:ring-[var(--accent-color)] focus-visble:ring-offset-1 dark:focus-visble:ring-offset-[var(--primary-bg)] transition-colors"
+                                    >
+                                        <i class="fas fa-crown w-4 h-4 pointer-events-none"></i>
+                                    </button>
+                                `
+                            }
+
+                            viewerHTMLs.push(`
+                                <div class="flex items-center justify-between p-2 hover:bg-[--hover-bg] rounded-lg">
+                                    <div class="flex items-center gap-2 overflow-hidden">
+                                        <div class="w-7 h-7 rounded-full ${userColor} flex-shrink-0 flex item-center text-white text-sm font-medium">
+                                            ${initials}
+                                        </div>
+                                        <span class="text-[var(--text-primary)] truncate" title=${user.name}>
+                                            ${user.name}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1 flex-shrink-0>
+                                        <span class="text-xs ${statusClass} px-1.5 py-0.5 rounded-full font-medium">${statusText}</span>
+                                        ${transferButtonHTML}
+                                    </div>
+                                </div>
+                            `);
                         });
-                        $('#totalViewers').text(users.length);
-                        $('#viewerCount').text(users.length.toLocaleString());
-                        console.log('观众列表更新成功:', users.length, '观众');
+
+                        $('#viewersList').empty().html(viewerHTMLs.join(''));
+
+                        $('#viewersList').off('click', '.transfer-ownership-btn').on('click', '.transfer-ownership-btn', function () {
+                            const targetUserId = parseInt($(this).data('userid'))
+                            const targetUsername = $(this).data('username');
+                            handleTransferOwnership(targetUserId, targetUsername);
+                        });
+
+                        $('#totalViewers').text(users.length.toLocaleString());
                     } else if (!data.success && data.payload && data.payload.error) {
                         console.error('获取观众列表失败:', data.payload.error);
                         showErrorToast(`获取观众列表失败: ${data.payload.error}`);
@@ -2114,16 +1753,6 @@
                 }
             }
 
-            function listenForNewMessages() {
-                // TODO: 对接WebSocket，建立实时消息通知
-                // 实现新消息的实时接收和展示
-            }
-
-            function listenForViewerUpdates() {
-                // TODO: 对接WebSocket，监听观众数量变化
-                // 实时更新观众数量和观众列表
-            }
-
             function getUserColor(userId) {
                 const colors = ['bg-blue-500', 'bg-green-500', 'bg-red-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500'];
 
@@ -2135,31 +1764,122 @@
                 return colors[colorIndex];
             }
 
-            function addViewerToList(viewer) {
-                const initials = viewer.username.charAt(0).toUpperCase();
-                const userColor = getUserColor(viewer.userId);
+            // function addViewerToList(viewer) {
+            //     const initials = viewer.username.charAt(0).toUpperCase();
+            //     const userColor = getUserColor(viewer.userId);
 
-                const statusClass = viewer.isHost
-                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
-                    : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+            //     const statusClass = viewer.isHost
+            //         ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+            //         : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
 
-                const statusText = viewer.isHost ? 'Host' : 'Online';
+            //     const statusText = viewer.isHost ? 'Host' : 'Online';
 
-                const viewerHTML = `
-                    <div class="flex items-center justify-between p-2 hover:bg-[var(--hover-bg)] rounded">
-                        <div class="flex items-center gap-2">
-                            <div class="w-7 h-7 rounded-full ${userColor} flex items-center justify-center text-white text-sm font-medium">
-                                ${initials}
-                            </div>
-                            <span>
-                                ${viewer.username}
-                            </span>
-                        </div>
-                        <span class="text-xs ${statusClass} px-1.5 py-0.5 rounded">${statusText}</span>
-                    </div>
-                `;
+            //     const viewerHTML = `
+            //         <div class="flex items-center justify-between p-2 hover:bg-[var(--hover-bg)] rounded">
+            //             <div class="flex items-center gap-2">
+            //                 <div class="w-7 h-7 rounded-full ${userColor} flex items-center justify-center text-white text-sm font-medium">
+            //                     ${initials}
+            //                 </div>
+            //                 <span>
+            //                     ${viewer.username}
+            //                 </span>
+            //             </div>
+            //             <span class="text-xs ${statusClass} px-1.5 py-0.5 rounded">${statusText}</span>
+            //         </div>
+            //     `;
 
-                $('#viewersList').append(viewerHTML);
+            //     $('#viewersList').append(viewerHTML);
+            // }
+
+            async function handleTransferOwnership(targetUserId, targetUsername) {
+                if (!currentRoomId) {
+                    showToast("房间ID未知，无法转移所有权。");
+                    return;
+                }
+
+                try {
+                    const respons = await fetch('/room/transfer', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            room: currentRoomId,
+                            target_id: targetUserId
+                        })
+                    })
+                    const data = await response.json();
+
+                    if (response.ok && response.success) {
+                        showSuccessToast(`所有权已成功转移给 ${targetUsername}。`);
+                        hostUserId = targetUserId;
+
+                        await fetchViewersList();
+                    } else {
+                        console.error('转移所有权失败', data);
+                        const errorMessage = data.payload?.error || '未知错误。';
+                        showErrorToast(errorMessage);
+                    }
+                } catch (error) {
+                    console.error('转移所有权时发生错误', error);
+                    showErrorToast('转移所有权时发生网络错误。');
+                }
+            }
+
+            function stopHeartbeat() {
+                clearInterval(heartbeatIntervalId);
+                clearTimeout(pongTimeoutId);
+                heartbertIntervalId = null;
+                pongTimeoutId = null;
+                console.log('心脏停博。');
+            }
+
+            function sendPing() {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    if (currentLoggedInUserId === null) {
+                        return;
+                    }
+
+                    pingMessageIdCounter++;
+                    pingSequenceNumberCounter++;
+
+                    const pingMsg = {
+                        a: currentLoggedInUserId,
+                        id: pingMessageIdCounter,
+                        p: {
+                            id: pingMessageIdCounter,
+                            sn: pingSequenceNumberCounter
+                        },
+                        t: '2'
+                    };
+
+                    try {
+                        ws.send(JSON.stringify(pingMsg));
+                        clearTimeout(pongTimeoutId);
+                        pongTimeoutId = setTimeout(handlePongTimeout, PONG_TIMEOUT);
+                    } catch (error) {
+                        console.error('Error sending ping:', error);
+                        handlePongTimeout();
+                    }
+                } else {
+                    stopHeartbeat();
+                }
+            }
+
+            function handlePongTimeout() {
+                console.warn(`Pong not received within ${PONG_TIMEOUT / 1000} seconds.`);
+                showWarningToast('与服务器的连接可能已断开，正在尝试重新连接...', -1);
+                if (ws) {
+                    ws.close(1000, "Pong timeout");
+                }
+            }
+
+            function startHeartbeat() {
+                stopHeartbeat();
+                heartbeatIntervalId = setInterval(sendPing, HEARTBEAT_INTERVAL);
+                console.log('💓');
+                setTimeout(sendPing, 1000);
             }
         });
     </script>

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream Alone - 直播平台</title>
+    <title>Stream Alone</title>
 
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
     <link
@@ -303,41 +303,6 @@
         </div>
     </div>
 
-    <div id="transfer-host-modal"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden" role="dialog"
-        aria-modal="true" aria-labelledby="transfer-host-modal-title">
-        <div class="bg-white dark:bg-[#0A0A0A] rounded-lg shadow-xl w-full max-w-md">
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 id="transfer-host-modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">
-                        转移房间所有权</h3>
-                    <button id="close-transfer-modal" aria-label="Close transfer host modal"
-                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <p id="transfer-room-name-info" class="text-sm text-gray-700 dark:text-gray-300 mb-4"></p>
-                <div class="mb-4">
-                    <label for="new-host-name-input"
-                        class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">新主持人用户名</label>
-                    <input type="text" id="new-host-name-input" placeholder="请输入新主持人的用户名..."
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent">
-                </div>
-                <div class="flex space-x-3">
-                    <button id="confirm-transfer-host"
-                        class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors">
-                        确认转移
-                    </button>
-                    <button id="cancel-transfer-host"
-                        class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors">
-                        取消
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
     <script>
         const AppState = {
             theme: localStorage.getItem('theme') || 'light',
@@ -450,7 +415,7 @@
                         try {
                             await fetchAPI('/user/logout', { method: 'POST' });
                             window.roomManager?.showNotification('已成功登出', 'success');
-                            window.location.href = '/login';
+                            window.location.href = '/';
                         } catch (error) {
                             window.roomManager?.showNotification(`登出失败: ${error.message}`, 'error');
                         }
@@ -461,14 +426,11 @@
 
         class RoomManager {
             constructor() {
-                this.roomIdToTransfer = null;
-                this.roomNameToTransfer = null;
             }
 
             async init() {
                 await this.fetchInitialRoomData();
                 this.bindEvents();
-                this.bindTransferHostModalEvents();
             }
 
             async _fetchAndProcessRoomsFromServer() {
@@ -776,10 +738,6 @@
                                     <i class="fas fa-share-alt mr-1"></i>
                                     分享链接
                                 </button>
-                                <button onclick="window.roomManager.showTransferHostModal('${room.id}', '${room.name.replace(/'/g, "\\'")}')" class="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300" title="Transfer host">
-                                    <i class="fas fa-exchange-alt mr-1"></i>
-                                    转移所有权
-                                </button>
                             </div>
                         </td>
                     </tr>
@@ -807,62 +765,6 @@
                     this.showNotification(`创建房间失败: ${error.message}`, 'error');
                     console.error('Error creating room:', error);
                 }
-            }
-
-
-            showTransferHostModal(roomId, roomName) {
-                this.roomIdToTransfer = roomId;
-                this.roomNameToTransfer = roomName;
-                const modal = document.getElementById('transfer-host-modal');
-                const roomNameInfoEl = document.getElementById('transfer-room-name-info');
-                const newHostNameInput = document.getElementById('new-host-name-input');
-
-                if (modal && roomNameInfoEl && newHostNameInput) {
-                    roomNameInfoEl.textContent = `您正在转移房间 "${roomName}" 的所有权。`;
-                    newHostNameInput.value = '';
-                    modal.classList.remove('hidden');
-                    newHostNameInput.focus();
-                }
-            }
-
-            async _handleConfirmTransfer() {
-                const newHostNameInput = document.getElementById('new-host-name-input');
-                if (!newHostNameInput || !this.roomIdToTransfer) return;
-
-                const newHostName = newHostNameInput.value.trim();
-                if (newHostName) {
-                    await this.transferHost(this.roomIdToTransfer, newHostName);
-                    this.closeTransferHostModal();
-                } else {
-                    this.showNotification('请输入有效的主持人名称', 'error');
-                    newHostNameInput.focus();
-                }
-            }
-
-            closeTransferHostModal() {
-                const modal = document.getElementById('transfer-host-modal');
-                if (modal) {
-                    modal.classList.add('hidden');
-                }
-                this.roomIdToTransfer = null;
-                this.roomNameToTransfer = null;
-            }
-
-
-            async transferHost(roomId, newHostName) {
-                this.showNotification(`转移房间 '${this.roomNameToTransfer}' 所有权给 '${newHostName}'. (后端API待实现)`, 'info');
-                AppState.myRooms = AppState.myRooms.filter(r => r.id !== roomId);
-                const allRoom = AppState.allRooms.find(r => r.id === roomId);
-                if (allRoom) {
-                    allRoom.creator = newHostName;
-                    allRoom.status = 'offline';
-                    allRoom.audienceCount = 0;
-                }
-
-                this.renderMyRooms();
-                this.renderAllRooms();
-
-                // TODO: 实现后端 API 调用以真正转移房间所有权
             }
 
             async refreshRoomsList() {
@@ -1199,38 +1101,6 @@
                 document.querySelectorAll('.create-room-trigger').forEach(trigger => {
                     trigger.addEventListener('click', openModalAction);
                 });
-            }
-
-            bindTransferHostModalEvents() {
-                const transferModal = document.getElementById('transfer-host-modal');
-                const closeTransferBtn = document.getElementById('close-transfer-modal');
-                const cancelTransferBtn = document.getElementById('cancel-transfer-host');
-                const confirmTransferBtn = document.getElementById('confirm-transfer-host');
-                const newHostNameInput = document.getElementById('new-host-name-input');
-
-                if (closeTransferBtn) {
-                    closeTransferBtn.addEventListener('click', () => this.closeTransferHostModal());
-                }
-                if (cancelTransferBtn) {
-                    cancelTransferBtn.addEventListener('click', () => this.closeTransferHostModal());
-                }
-                if (transferModal) {
-                    transferModal.addEventListener('click', (e) => {
-                        if (e.target === transferModal) {
-                            this.closeTransferHostModal();
-                        }
-                    });
-                }
-                if (confirmTransferBtn) {
-                    confirmTransferBtn.addEventListener('click', async () => await this._handleConfirmTransfer());
-                }
-                if (newHostNameInput) {
-                    newHostNameInput.addEventListener('keypress', async (e) => {
-                        if (e.key === 'Enter') {
-                            await this._handleConfirmTransfer();
-                        }
-                    });
-                }
             }
         }
 
