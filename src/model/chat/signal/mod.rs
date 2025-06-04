@@ -21,10 +21,10 @@ pub struct Signal {
 }
 
 impl Signal {
-    pub fn new(id: i32, author: Author, payload: Payload) -> Self {
+    pub fn new(id: i32, author: impl Into<Author>, payload: Payload) -> Self {
         Self {
             id,
-            author,
+            author: author.into(),
             payload,
         }
     }
@@ -33,7 +33,7 @@ impl Signal {
         Self::new(id, Author::System, payload)
     }
     
-    pub fn event(id: i32, author: Author, event: Event) -> Self {
+    pub fn event(id: i32, author: impl Into<Author>, event: Event) -> Self {
         Self::new(id, author, Payload::Event(event))
     }
     
@@ -62,6 +62,9 @@ pub enum Payload {
 }
 
 impl Payload {
+    pub fn ping(id: i32, sn: i32) -> Self {
+        Self::Ping(Ping::new(id, sn))
+    }
     pub fn pong(ping: &Ping) -> Self {
         Self::Pong(Pong::new(ping.id, ping.sn))
     }

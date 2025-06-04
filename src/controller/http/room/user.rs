@@ -17,7 +17,7 @@ struct PostResponse(UserPub);
 async fn post(jwt: Jwt, State(state): State<AppState>, Json(req): Json<PostRequest>) -> Response {
     let req_user_id = jwt.sub;
     let PostRequest  { user_id, room } = req;
-    let target_room = room::get_room_by_link(&room);
+    let target_room = state.rooms.get_room_by_link(&room);
     if let Err(e) = target_room { return e.into() }
     
     // 验证用户

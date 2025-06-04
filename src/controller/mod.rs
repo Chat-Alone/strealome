@@ -15,6 +15,7 @@ use error::Error;
 pub use response::Response;
 use crate::controller::jwt::{JwtAuthMethod, JwtDomain};
 use crate::repository::Repository;
+use crate::service::room::Rooms;
 
 #[macro_export]
 macro_rules! unwrap {
@@ -29,6 +30,7 @@ macro_rules! unwrap {
 #[derive(Clone)]
 pub struct AppState {
     pub repository: Arc<dyn Repository>,
+    pub rooms: Rooms,
     pub jwt_auth_method: JwtAuthMethod,
     pub jwt_secret: String,
     pub jwt_exp_duration: Duration,
@@ -44,7 +46,10 @@ pub async fn listen<A: ToSocketAddrs>(
     jwt_exp_dur_long: Duration
 ) -> JoinHandle<Result<(), String>> {
     
+    let rooms = Rooms::new();
+    
     let http_state = AppState {
+        rooms: rooms.clone(),
         repository: repo.clone(),
         jwt_auth_method: JwtAuthMethod::Cookie,
         jwt_secret: jwt_secret.clone(),
@@ -54,6 +59,7 @@ pub async fn listen<A: ToSocketAddrs>(
     };
     
     let chat_ws_state = AppState {
+        rooms,
         repository: repo.clone(),
         jwt_auth_method: JwtAuthMethod::Query,
         jwt_secret,

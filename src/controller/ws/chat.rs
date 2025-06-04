@@ -6,18 +6,18 @@ use super::{Response, AppState, Jwt};
 use crate::service::{chat, room};
 
 async fn upgrade(
-    jwt: Jwt, State(state): State<AppState>,
+    jwt: Jwt, State(s): State<AppState>,
     ws: WebSocketUpgrade, Path(room_link): Path<String>
 ) -> AxumResponse {
     println!("Upgrading websocket {}", room_link);
-    if let Err(e) = room::get_room_by_link(&room_link) {
+    if let Err(e) = s.rooms.get_room_by_link(&room_link) {
         return Response::from(e).into_response();
     }
 
     ws.on_upgrade(
         async move |socket| {
             if let Err(e) = 
-                chat::handle_websocket(socket, room_link, jwt.sub, state.repository).await {
+                chat::handle_websocket(socket, room_link, jwt.sub, s.repository, s.rooms).await {
                 eprintln!("Error: {}", e)
             }
         }

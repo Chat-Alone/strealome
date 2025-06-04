@@ -1,4 +1,4 @@
-use axum::extract::{ Json };
+use axum::extract::{Json, State};
 use axum::{ routing, Router };
 use crate::service::room;
 use super::{AppState, Response, Jwt};
@@ -10,12 +10,12 @@ struct PostRequest {
     target_id:  i32,
 }
 
-async fn post(jwt: Jwt, Json(req): Json<PostRequest>) -> Response {
+async fn post(jwt: Jwt, State(s): State<AppState>, Json(req): Json<PostRequest>) -> Response {
     let old_host_id = jwt.sub;
-    if let Err(e) = room::contains_user(&req.room, old_host_id) { return e.into() };
+    if let Err(e) = s.rooms.contains_user(&req.room, old_host_id) { return e.into() };
     
     let PostRequest { room: target_room, target_id: new_host_id } = req;
-    if let Err(e) = room::change_host(&target_room, new_host_id).await { return e.into() };
+    if let Err(e) = s.rooms.change_host(&target_room, new_host_id) { return e.into() };
     
     Response::success::<()>(None)
 }
