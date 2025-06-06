@@ -3,12 +3,15 @@ mod response;
 mod jwt;
 mod http;
 mod ws;
+mod webrtc;
 
 use std::sync::Arc;
 use axum::Router;
 use chrono::Duration;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::task::JoinHandle;
+
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 use jwt::Jwt;
 use error::Error;
@@ -21,6 +24,16 @@ use crate::service::room::Rooms;
 macro_rules! unwrap {
     ($result:expr) => {
         match $result {
+            Ok(v) => v,
+            Err(e) => return e.into(),
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! read_to_string {
+    ($result:expr) => {
+        match fs::read_to_string($result).await {
             Ok(v) => v,
             Err(e) => return Error::from(e).into_response(),
         }
@@ -69,8 +82,12 @@ pub async fn listen<A: ToSocketAddrs>(
     };
     
     let app = Router::new()
-        .merge(http::route("/", http_state))
+        .merge(http::route("/", http_state.clone()))
+        .merge(webrtc::route("/s", http_state.clone()))
         .merge(ws::route("/ws", chat_ws_state));
+
+    #[cfg(debug_assertions)]
+    let app = app.layer(CorsLayer::permissive());
 
     let listener = TcpListener::bind(addr).await.unwrap();
     println!("Listening on http://{}", listener.local_addr().unwrap());

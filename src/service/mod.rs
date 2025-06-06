@@ -1,6 +1,7 @@
 pub mod user;
 pub mod chat;
 pub mod room;
+pub mod webrtc;
 mod error;
 
 pub use error::Error;

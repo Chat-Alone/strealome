@@ -1,9 +1,9 @@
 use axum::{Router, routing};
 use axum::extract::State;
 use axum::response::{Html, IntoResponse, Redirect, Response as AxumResponse};
-use tokio::fs::read_to_string;
+use tokio::fs;
 use crate::service::user;
-use crate::unwrap;
+use crate::{read_to_string};
 use super::{Error, AppState, Jwt};
 
 async fn get(jwt: Option<Jwt>, State(state): State<AppState>) -> AxumResponse {
@@ -16,7 +16,7 @@ async fn get(jwt: Option<Jwt>, State(state): State<AppState>) -> AxumResponse {
         return Redirect::to("/").into_response()
     }
     let user = user.unwrap();
-    let str = unwrap!(read_to_string("frontend/stream.html").await);
+    let str = read_to_string!("frontend/stream.html");
     let str = str.replace("{{USERNAME}}", &user.name);
     Html(str).into_response()
 }
