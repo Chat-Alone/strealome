@@ -15,17 +15,17 @@ struct PostResponse {
 }
 
 async fn post(
-    jwt: Jwt, State(state): State<AppState>,
+    jwt: Jwt, State(s): State<AppState>,
     Json(req): Json<PostRequest>
 ) -> Response {
-    let repo = state.repository;
+    let repo = s.repository;
     let user = user::get_user_by_id(repo.clone(), jwt.sub).await;
     if let Err(e) = user { return e.into() }
     let user = user.unwrap();
     
     let PostRequest { name: room_name } = req;
     let room = RoomResp::from(
-        room::create_host_by(user.id, room_name).await,
+        s.rooms.create_host_by(user.id, room_name).await,
         user.id, repo
     ).await;
     

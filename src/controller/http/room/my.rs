@@ -11,14 +11,14 @@ struct GetResponse {
 }
 
 // get all related rooms
-async fn get(jwt: Jwt, State(state): State<AppState>) -> Response {
-    let user = user::get_user_by_id(state.repository.clone(), jwt.sub).await;
+async fn get(jwt: Jwt, State(s): State<AppState>) -> Response {
+    let user = user::get_user_by_id(s.repository.clone(), jwt.sub).await;
     if let Err(e) = user { return e.into() }
     let user = user.unwrap();
     
     let user_id = user.id;
-    let repo = state.repository;
-    let tasks = room::related_to(user_id).into_iter()
+    let repo = s.repository;
+    let tasks = s.rooms.related_to(user_id).into_iter()
         .map(|r| {
             let repo = repo.clone();
             async move {

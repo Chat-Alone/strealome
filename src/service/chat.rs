@@ -8,6 +8,7 @@ use tokio::task::JoinHandle;
 use crate::controller::Response;
 use super::{room, user, Repository};
 use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent, Payload as ChatPayload};
+use crate::service::room::Rooms;
 
 const MPSC_BUF_SIZE: usize = 32;
 
@@ -43,15 +44,15 @@ impl From<&ChatSignal> for Message {
 
 pub async fn handle_websocket(
     socket: WebSocket, room_link: String,
-    user_id: i32, repo: Arc<dyn Repository>
+    user_id: i32, repo: Arc<dyn Repository>, rooms: Rooms
 ) -> Result<(), ChatError> {
     let user = user::get_user_by_id(repo, user_id).await?;
     let (tx, mut rx) = mpsc::channel::<Arc<ChatSignal>>(MPSC_BUF_SIZE);
     let (mut sender, mut recver) = socket.split();
     
-    room::join_room(&room_link, user_id, tx.clone()).await?;
+    rooms.join_room(&room_link, user_id, tx.clone()).await?;
     
-    println!("CurrRooms: {:?}", room::rooms());
+    println!("CurrRooms: {:?}", rooms);
     
     let _tx = tx.clone();
     let recv_fut = async move {
@@ -94,7 +95,7 @@ pub async fn handle_websocket(
         }
     }
     
-    let _ = room::leave_room(&room_link, user_id).await;
+    let _ = rooms.leave_room(&room_link, user_id).await;
         
     Ok(())
 }
@@ -106,9 +107,12 @@ pub async fn handle_websocket(
 //     Ok(room::create_host_by(user.id))
 // }
 
-pub async fn send_message(repo: Arc<dyn Repository>, user_id: i32, room_link: String, content: String) -> Result<(), ChatError> {
+pub async fn send_message(
+    repo: Arc<dyn Repository>, rooms: &Rooms,
+    user_id: i32, room_link: String, content: String
+) -> Result<(), ChatError> {
     let user = user::get_user_by_id(repo, user_id).await?;
-    room::send_message(user.id, room_link, content).await?;
+    rooms.send_message(user.id, room_link, content).await?;
     Ok(())
 }
 
@@ -117,4 +121,21 @@ fn ping_pong(signal: &ChatSignal) -> Option<ChatSignal> {
         ChatPayload::Ping(ping) => Some(ChatPayload::pong(ping)),
         _ => None,
     }.map(|payload| ChatSignal::sys(1919810, payload))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::chat::{Signal as ChatSignal, Event as ChatEvent, Payload as ChatPayload};
+    
+    #[test]
+    fn test_ping_pong() {
+        let signal = ChatSignal::new(1919810, 10, ChatPayload::ping(114514, 1919810));
+        if let ChatPayload::Pong(pong) = ping_pong(&signal).expect("Invalid signal").payload() {
+            assert_eq!(pong.id, 114514);
+            assert_eq!(pong.sn, 1919810);
+        } else {
+            panic!("Invalid pong")
+        }
+    }
 }
