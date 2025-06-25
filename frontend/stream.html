@@ -25,7 +25,6 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/lucide-icons@latest/dist/umd/lucide.min.js"></script>
     <style>
         :root {
             --primary-bg: #ffffff;
@@ -777,7 +776,7 @@
 
             <div id="viewersContainer" class="hidden flex-1 overflow-y-auto p-4">
                 <div class="mb-3">
-                    <span class="text-sm text-[var(--text-secondary)]">在线人数: <span id="totalViewers">1,245</span></span>
+                    <span class="text-sm text-[var(--text-secondary)]">在线人数: <span id="totalViewers">0</span></span>
                 </div>
 
                 <div id="viewersList" class="space-y-2">
@@ -982,6 +981,9 @@
                                 case 'chat':
                                     console.log("收到聊天消息:", eventData);
                                     if (eventData.author_id !== undefined && eventData.content && eventData.created_at) {
+                                        if (eventData.author_id === currentLoggedInUserId) {
+                                            return;
+                                        }
                                         userDetail = await getUserDetails(eventData.author_id);
 
                                         let authorUsername = `用户 ${eventData.author_id}`;
@@ -1020,6 +1022,28 @@
                                         addSystemMessageToChat(`一位用户（ID: ${eventData.user_id}）离开了直播间。`);
                                     }
                                     await fetchViewersList();
+                                    break;
+                                case 'transfer':
+                                    console.log("收到所有权转移事件:", eventData);
+                                    if (eventData && eventData.host_id !== undefined) {
+                                        const newHostId = eventData.host_id;
+                                        const oldHostId = hostUserId;
+
+                                        hostUserId = newHostId;
+
+                                        Promise.all([
+                                            getUserDetails(oldHostId),
+                                            getUserDetails(newHostId)
+                                        ]).then(([oldHostDetail, newHostDetail]) => {
+                                            const oldHostName = oldHostDetail ? oldHostDetail.username : `用户 ${oldHostId}`;
+                                            const newHostName = newHostDetail ? newHostDetail.username : `用户 ${newHostId}`;
+                                            addSystemMessageToChat(`${oldHostName} 已将直播间所有权转移给 ${newHostName}。`);
+                                        });
+
+                                        await fetchViewersList();
+                                    } else {
+                                        console.warn('无效的所有权转移事件格式:', eventData);
+                                    }
                                     break;
                                 default:
                                     console.warn('未知的WebSocket事件:', eventName, eventData);
@@ -1705,7 +1729,7 @@
                                         aria-label="将所有权转移给 ${user.name}"
                                         data-userid="${user.id}"
                                         data-username="${user.name.replace(/"/g, '&quot;')}"
-                                        class="transfer-ownership-btn ml-1 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-[var(--primary-bg)] transition-colors"
+                                        class="transfer-ownership-btn no-focus ml-1 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-[var(--primary-bg)] transition-colors"
                                     >
                                         <i class="fas fa-crown w-4 h-4 pointer-events-none"></i>
                                     </button>
@@ -1723,8 +1747,8 @@
                                         </span>
                                     </div>
                                     <div class="flex items-center gap-1">
-                                        <span class="text-xs ${statusClass} px-1.5 py-0.5 rounded">${statusText}</span>
                                         ${transferButtonHTML}
+                                        <span class="text-xs ${statusClass} px-1.5 py-0.5 rounded">${statusText}</span>
                                     </div>
                                 </div>
                             `);
@@ -1739,6 +1763,8 @@
                         });
 
                         $('#totalViewers').text(users.length.toLocaleString());
+                        console.log('观众列表已更新:', users.length, '观众:', users);
+                        console.log('当前主播id:', hostUserId);
                     } else if (!data.success && data.payload && data.payload.error) {
                         console.error('获取观众列表失败:', data.payload.error);
                         showErrorToast(`获取观众列表失败: ${data.payload.error}`);
@@ -1813,7 +1839,7 @@
                     })
                     const data = await response.json();
 
-                    if (response.ok && response.success) {
+                    if (response.ok && data.success) {
                         showSuccessToast(`所有权已成功转移给 ${targetUsername}。`);
                         hostUserId = targetUserId;
 
