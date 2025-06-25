@@ -155,7 +155,7 @@ impl Room {
             .collect();
         
         for (user_id, tx) in users {
-            if !is_chat && user_id == author_id { continue }
+            if is_chat && user_id == author_id { continue }
             let res = tx.send(msg.clone()).await;
             if res.is_err() {
                 errors.push((res.err().unwrap(), user_id));
