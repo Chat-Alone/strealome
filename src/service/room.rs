@@ -147,6 +147,7 @@ impl Room {
     
     pub async fn sync_signal(&self, author_id: i32, signal: ChatSignal) -> Result<(), RoomError> {
         let msg = Arc::new(signal);
+        let is_chat = msg.payload().is_chat();
         
         let mut errors = vec![];
         let users: Vec<_> = self.users.iter()
@@ -154,7 +155,7 @@ impl Room {
             .collect();
         
         for (user_id, tx) in users {
-            if user_id == author_id { continue }
+            if !is_chat && user_id == author_id { continue }
             let res = tx.send(msg.clone()).await;
             if res.is_err() {
                 errors.push((res.err().unwrap(), user_id));

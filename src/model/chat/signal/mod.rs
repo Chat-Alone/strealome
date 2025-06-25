@@ -68,6 +68,13 @@ impl Payload {
     pub fn pong(ping: &Ping) -> Self {
         Self::Pong(Pong::new(ping.id, ping.sn))
     }
+    
+    pub fn is_chat(&self) -> bool {
+        if let Payload::Event(Event::Chat(_)) = self {
+            return true;
+        }
+        false
+    }
 }
 
 #[test]
