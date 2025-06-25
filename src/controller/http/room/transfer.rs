@@ -15,7 +15,7 @@ async fn post(jwt: Jwt, State(s): State<AppState>, Json(req): Json<PostRequest>)
     if let Err(e) = s.rooms.contains_user(&req.room, old_host_id) { return e.into() };
     
     let PostRequest { room: target_room, target_id: new_host_id } = req;
-    if let Err(e) = s.rooms.change_host(&target_room, new_host_id) { return e.into() };
+    if let Err(e) = s.rooms.change_host(&target_room, new_host_id).await { return e.into() };
     
     Response::success::<()>(None)
 }

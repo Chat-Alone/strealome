@@ -220,7 +220,7 @@ impl Rooms {
     /// 2. new_host_id is not in the target room
     /// 
     /// **make sure room_link is not a ref of a Vec<String> in self.hosts**
-    pub fn change_host(&self, room_link: &str, new_host_id: i32) -> Result<i32, RoomError> {
+    pub async fn change_host(&self, room_link: &str, new_host_id: i32) -> Result<i32, RoomError> {
         let mut ret = Ok(new_host_id);
         
         self.rooms.entry(room_link.to_string()).and_modify(|room| {
@@ -248,6 +248,11 @@ impl Rooms {
             room.set_host(new_host_id);
         });
 
+        if ret.is_ok() {
+            self.get_room_by_link(room_link)?
+                .sync_event(new_host_id, ChatEvent::transfer(new_host_id)).await?;
+        }
+
         ret
     }
 
@@ -255,8 +260,7 @@ impl Rooms {
     async fn find_next_host(&self, room_link: &str) -> Result<i32, RoomError> {
         let room = self.get_room_by_link(room_link)?;
         for user_id in room.users() {
-            if self.change_host(room_link, user_id).is_ok() {
-                room.sync_event(user_id, ChatEvent::transfer(user_id)).await?;
+            if self.change_host(room_link, user_id).await.is_ok() {
                 return Ok(user_id);
             }
         }
@@ -430,6 +434,14 @@ fn gen_rand_string(len: usize) -> String {
         .collect()
 }
 
+#[test]
+fn test() {
+    let s = gen_rand_string(500);
+    let mut v = s.chars().collect::<Vec<_>>();
+    v.sort();
+    println!("{:?}", v)
+}
+
 // #[cfg(test)]
 pub mod stress_tests {
     use super::*;
@@ -587,6 +599,8 @@ pub mod stress_tests {
     // 测试主持人更换压力
     #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
     pub async fn test_host_transfer_stress() {
+        use crate::model::chat::{Payload, Event};
+
         let rooms = Rooms::new();
 
         let room = rooms.create_host_by(0, "HostTransferRoom".to_string()).await;
@@ -597,9 +611,16 @@ pub mod stress_tests {
             .map(|i| {
                 let room = share_link.clone();
                 let rooms = rooms.clone();
-                let (tx, mut rx) = mpsc::channel(32);
+                let (tx, mut rx) = mpsc::channel::<Arc<ChatSignal>>(32);
                 task::spawn(async move {
-                    while rx.recv().await.is_some() {}
+                    while let Some(_s) = rx.recv().await {
+                        // println!("Received signal: {:?}", s);
+                        // if let Payload::Event(ev) = s.payload() {
+                        //     if let Event::Transfer(t) = ev {
+                        //         println!("Transfer signal received: {:?}", t);
+                        //     }
+                        // }
+                    }
                 });
                 task::spawn(async move {
                     rooms.join_room(&room, i as i32, tx).await.unwrap()
@@ -617,7 +638,7 @@ pub mod stress_tests {
                 let share_link = share_link.clone();
                 let rooms = rooms.clone();
                 task::spawn(async move {
-                    rooms.change_host(&share_link, new_host).unwrap();
+                    rooms.change_host(&share_link, new_host).await.unwrap();
                 })
             })
             .collect();
