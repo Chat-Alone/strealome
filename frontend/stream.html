@@ -21,6 +21,7 @@
         }
     </script>
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://ingest.stream.chatalone.asia/jessibuca/jessibuca.min.js"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
         rel="stylesheet">
@@ -704,10 +705,7 @@
                 <p class="text-base">加载直播中...</p>
             </div>
 
-            <video id="streamVideo" class="stream-video" autoplay muted tabindex="0">
-                <source src="" type="video/mp4">
-                你的浏览器不支持HTML5视频标签。
-            </video>
+            <div id="streamPlayer" class="stream-video"></div>
 
             <div id="offlineOverlay" class="offline-overlay">
                 <i class="fas fa-video-slash text-5xl mb-4"></i>
@@ -811,7 +809,96 @@
          * 1. 移除所有带有"TODO: 在生产环境中移除"标记的测试代码
          * 2. 移除测试状态切换按钮
          * 3. 实现真实的直播状态检测逻辑
-         */
+        */
+
+        const initLivePlayer = async () => {
+            const pathParts = window.location.pathname.split('/');
+            const roomId = (pathParts[1] === 'share') ? pathParts[2] : null;
+
+            if (!roomId) {
+                $('#loadingContainer').hide();
+                $('#offlineOverlay').text('无效的房间号').addClass('active');
+                return;
+            }
+
+            const serverDomain = 'ingest.stream.chatalone.asia';
+            const apiUrl = `https://${serverDomain}/api/v1/streams/?query={"name":"${roomId}"}`;
+            let jessibuca = null;
+
+            const checkStreamStatus = async () => {
+                try {
+                    const res = await fetch(apiUrl);
+                    if (!res.ok) return false;
+                    const json = await res.json();
+                    return json?.streams && json.streams.length > 0;
+                } catch (err) {
+                    return false;
+                }
+            };
+
+            const initPlayer = () => {
+                if (jessibuca) return;
+
+                const videoUrl = `webrtc://${serverDomain}/live/${roomId}`;
+
+                try {
+                    jessibuca = new Jessibuca({
+                        container: document.getElementById('streamPlayer'),
+                        decoder: "/get-decoder",
+
+                        isLive: true,
+                        isNotMute: false,
+                        operateBtns: {
+                            fullscreen: false,
+                            screenshot: false,
+                            play: false,
+                            audio: false,
+                        },
+                        // 明确告诉播放器信令服务器的地址
+                        whepUrl: `https://${serverDomain}/api/v1/whep/endpoint`
+                    });
+                    jessibuca.play(videoUrl);
+
+                    $('#offlineOverlay').removeClass('active');
+                } catch (e) {
+                    $('#offlineOverlay').addClass('active');
+                    jessibuca = null;
+                }
+            };
+
+            const destroyPlayer = () => {
+                if (jessibuca) {
+                    jessibuca.destroy();
+                    jessibuca = null;
+                    $('#offlineOverlay').addClass('active');
+                }
+            };
+
+            const main = async () => {
+                const isLive = await checkStreamStatus();
+                $('#loadingContainer').hide();
+                if (isLive) {
+                    initPlayer();
+                } else {
+                    $('#offlineOverlay').addClass('active');
+                }
+                setInterval(async () => {
+                    const currentStatus = await checkStreamStatus();
+                    const isPlayerActive = !!jessibuca;
+                    if (currentStatus && !isPlayerActive) {
+                        initPlayer();
+                    } else if (!currentStatus && isPlayerActive) {
+                        destroyPlayer();
+                    }
+                }, 5000);
+            };
+
+            main();
+        };
+
+        window.onload = function () {
+            initLivePlayer();
+        };
 
         window.addEventListener('load', () => {
             if (document.activeElement && document.activeElement !== document.body) {
