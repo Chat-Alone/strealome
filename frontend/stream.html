@@ -21,7 +21,7 @@
         }
     </script>
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
-    <script src="https://ingest.stream.chatalone.asia/jessibuca/jessibuca.min.js"></script>
+    <script src="/public/srs.sdk.js"></script>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
         rel="stylesheet">
@@ -803,102 +803,96 @@
     </footer>
 
     <script>
-        // TODO: 在生产环境中移除
-        /**
-         * TODO: [重要] 在生产环境部署前：
-         * 1. 移除所有带有"TODO: 在生产环境中移除"标记的测试代码
-         * 2. 移除测试状态切换按钮
-         * 3. 实现真实的直播状态检测逻辑
-        */
+            // TODO: 在生产环境中移除
+            /**
+             * TODO: [重要] 在生产环境部署前：
+             * 1. 移除所有带有"TODO: 在生产环境中移除"标记的测试代码
+             * 2. 移除测试状态切换按钮
+             * 3. 实现真实的直播状态检测逻辑
+            */
 
-        const initLivePlayer = async () => {
-            const pathParts = window.location.pathname.split('/');
-            const roomId = (pathParts[1] === 'share') ? pathParts[2] : null;
+            (function () {
+                const rawOpen = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function (m, u) {
+                    if (m === 'POST' && typeof u === 'string' && u.indexOf('/rtc/v1/') !== -1) {
+                        const nu = u.replace('/rtc/v1/', '/srs-api/rtc/v1/');
+                        console.log('[XHR-PATCH] POST', u, '→', nu);
+                        arguments[1] = nu;
+                    }
+                    return rawOpen.apply(this, arguments);
+                };
+            })();
 
+        function initLivePlayer() {
+            const ps = location.pathname.split('/');
+            const roomId = ps[1] === 'share' ? ps[2] : null;
             if (!roomId) {
                 $('#loadingContainer').hide();
-                $('#offlineOverlay').text('无效的房间号').addClass('active');
+                $('#offlineOverlay').text('无效房间号').addClass('active');
                 return;
             }
+            const apiDetect = `/srs-api/api/v1/streams/?query={"name":"${roomId}"}`;
+            const playUrl = `webrtc://${location.host}/live/${roomId}`;
+            let rtc = null, video = null, hasStream = false;
 
-            const serverDomain = 'ingest.stream.chatalone.asia';
-            const apiUrl = `https://${serverDomain}/api/v1/streams/?query={"name":"${roomId}"}`;
-            let jessibuca = null;
+            async function isUp() {
+                const r = await fetch(apiDetect).catch(() => null);
+                if (!r || !r.ok) return false;
+                const j = await r.json();
+                return j.streams && j.streams.length && j.streams[0].publish.active;
+            }
 
-            const checkStreamStatus = async () => {
-                try {
-                    const res = await fetch(apiUrl);
-                    if (!res.ok) return false;
-                    const json = await res.json();
-                    return json?.streams && json.streams.length > 0;
-                } catch (err) {
-                    return false;
-                }
-            };
+            function destroy() {
+                console.log('[DESTROY]');
+                if (rtc) { try { rtc.close() } catch (_) { } rtc = null }
+                if (video) { try { video.pause() } catch (_) { } video.remove(); video = null }
+                hasStream = false;
+                $('#offlineOverlay').addClass('active');
+            }
 
-            const initPlayer = () => {
-                if (jessibuca) return;
+            async function create() {
+                if (rtc) return;
+                console.log('[CREATE]', playUrl);
+                video = document.createElement('video');
+                video.id = 'streamVideo';
+                video.autoplay = true;
+                video.muted = true;
+                video.playsInline = true;
+                video.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000';
+                $('#streamPlayer').empty().append(video);
 
-                const videoUrl = `webrtc://${serverDomain}/live/${roomId}`;
-
-                try {
-                    jessibuca = new Jessibuca({
-                        container: document.getElementById('streamPlayer'),
-                        decoder: "/public/decoder.js",
-
-                        isLive: true,
-                        isNotMute: false,
-                        operateBtns: {
-                            fullscreen: false,
-                            screenshot: false,
-                            play: false,
-                            audio: false,
-                        },
-                        // 明确告诉播放器信令服务器的地址
-                        whepUrl: `https://${serverDomain}/api/v1/whep/endpoint`
-                    });
-                    jessibuca.play(videoUrl);
-
+                rtc = new SrsRtcPlayerAsync();
+                rtc.ontrack = e => {
+                    const stream = e.streams[0];
+                    if (video.srcObject === stream) return;
+                    console.log('[ONTRACK]');
+                    hasStream = true;
                     $('#offlineOverlay').removeClass('active');
-                } catch (e) {
-                    $('#offlineOverlay').addClass('active');
-                    jessibuca = null;
-                }
-            };
+                    video.srcObject = stream;
+                    video.play().catch(() => { });
+                };
+                rtc.onconnectionstatechange = () => {
+                    if (['failed', 'disconnected', 'closed'].includes(rtc.connectionState)) destroy();
+                };
+                await rtc.play(playUrl, { timeout: 15000 }).then(() => console.log('[PLAY OK]')).catch(e => { console.log('[PLAY ERR]', e); destroy(); });
+            }
 
-            const destroyPlayer = () => {
-                if (jessibuca) {
-                    jessibuca.destroy();
-                    jessibuca = null;
-                    $('#offlineOverlay').addClass('active');
-                }
-            };
-
-            const main = async () => {
-                const isLive = await checkStreamStatus();
+            (async () => {
+                $('#loadingContainer').show();
+                if (await isUp()) await create(); else $('#offlineOverlay').addClass('active');
                 $('#loadingContainer').hide();
-                if (isLive) {
-                    initPlayer();
-                } else {
-                    $('#offlineOverlay').addClass('active');
-                }
+
                 setInterval(async () => {
-                    const currentStatus = await checkStreamStatus();
-                    const isPlayerActive = !!jessibuca;
-                    if (currentStatus && !isPlayerActive) {
-                        initPlayer();
-                    } else if (!currentStatus && isPlayerActive) {
-                        destroyPlayer();
-                    }
-                }, 5000);
-            };
-
-            main();
-        };
-
-        window.onload = function () {
-            initLivePlayer();
-        };
+                    const up = await isUp();
+                    const playing = !!rtc;
+                    console.log('[TIMER] up', up, 'stream', hasStream, 'playing', playing);
+                    if (up && !playing) await create();
+                    if (!up && playing) destroy();
+                    $('#offlineOverlay').toggleClass('active', !hasStream);
+                }, 2000);
+            })();
+        }
+        document.addEventListener('DOMContentLoaded', initLivePlayer);
 
         window.addEventListener('load', () => {
             if (document.activeElement && document.activeElement !== document.body) {
