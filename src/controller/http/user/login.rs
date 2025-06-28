@@ -1,12 +1,17 @@
 use serde::{Deserialize, Serialize};
 
 use axum::{Json, routing};
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::http::{HeaderValue, header::SET_COOKIE};
-use axum::response::{IntoResponse, Response as AxumResponse};
+use axum::response::{IntoResponse, Redirect, Response as AxumResponse};
 
 use super::{Jwt, AppState, Response};
 use crate::service::user;
+
+#[derive(Serialize, Deserialize, Debug)]
+struct PostQuery {
+    redirect: Option<String>
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct PostRequest {
@@ -29,7 +34,12 @@ struct PostResponse {
     pub token: String,
 }
 
-async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> AxumResponse {
+async fn post(
+    State(state): State<AppState>,
+    Query(PostQuery {redirect}): Query<PostQuery>,
+    Json(req): Json<PostRequest>
+) -> AxumResponse {
+    println!("{:?}", redirect);
     let remember = req.remember;
     match user::handle_login(state.repository, req.into()).await {
         Ok(user) => {
@@ -37,7 +47,11 @@ async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> Ax
             let jwt = Jwt::http(user.id, duration);
             let token = jwt.encode(&state.jwt_secret).unwrap_or("wtf?".to_string());
             let post_res = PostResponse { token };
-            let mut res = Response::success(Some(serde_json::to_value(&post_res).unwrap())).into_response();
+            let mut res = if let Some(redirect) = redirect {
+                Redirect::to(&redirect).into_response()
+            } else {
+                Response::success(Some(serde_json::to_value(&post_res).unwrap())).into_response()
+            };
             
             if state.jwt_auth_method.is_cookie() {
                 let cookie = format!(
@@ -47,6 +61,9 @@ async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> Ax
                 res.headers_mut()
                     .insert(SET_COOKIE, HeaderValue::from_str(&cookie).unwrap());
             }
+
+            println!("{:?}", res);
+
             res
         },
         Err(e) => Response::from(e).into_response(),

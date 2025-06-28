@@ -381,7 +381,7 @@
                 $('#loginSpinner').removeClass('hidden');
                 $('#loginBtn').prop('disabled', true).addClass('opacity-75');
 
-                fetch('/user/login', {
+                fetch(`/user/login${window.location.search ?? ""}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -392,7 +392,13 @@
                         remember,
                     }),
                 })
-                    .then(response => response.json())
+                    .then(res => {
+                        if (res.redirected) {
+                            window.location.href = res.url;
+                        } else {
+                            return res.json();
+                        }
+                    })
                     .then(data => {
                         if (data.success) {
                             const token = data.payload?.token;
@@ -419,6 +425,11 @@
                         $('#loginSpinner').addClass('hidden');
                         $('#loginBtn').prop('disabled', false).removeClass('opacity-75');
                     });
+            });
+
+            $('#registerLink').on('click', function (e) {
+                e.preventDefault();
+                window.location.href = `/register${window.location.search ?? ""}`;
             });
         });
     </script>
