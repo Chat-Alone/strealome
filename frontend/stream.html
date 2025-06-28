@@ -592,6 +592,14 @@
             border-radius: 4px;
         }
 
+        #chatContainer {
+            scroll-behavior: smooth;
+        }
+
+        .stream-container.offline-stream .live-controls {
+            display: none;
+        }
+
         button.rounded-full.focused::before {
             border-radius: 50%;
             top: -3px;
@@ -799,18 +807,10 @@
 
     <footer
         class="py-2 px-4 text-xs text-[var(--text-secondary)] text-center border-t border-solid border-[var(--border-color)] mt-auto">
-        FuyuRen 2025 &copy; All rights reserved.
+        Stream Alone 2025 &copy; All rights reserved.
     </footer>
 
     <script>
-            // TODO: 在生产环境中移除
-            /**
-             * TODO: [重要] 在生产环境部署前：
-             * 1. 移除所有带有"TODO: 在生产环境中移除"标记的测试代码
-             * 2. 移除测试状态切换按钮
-             * 3. 实现真实的直播状态检测逻辑
-            */
-
             (function () {
                 const rawOpen = XMLHttpRequest.prototype.open;
                 XMLHttpRequest.prototype.open = function (m, u) {
@@ -828,12 +828,13 @@
             const roomId = ps[1] === 'share' ? ps[2] : null;
             if (!roomId) {
                 $('#loadingContainer').hide();
+                $('.stream-container').addClass('offline-stream');
                 $('#offlineOverlay').text('无效房间号').addClass('active');
                 return;
             }
             const apiDetect = `/srs-api/api/v1/streams/?query={"name":"${roomId}"}`;
             const playUrl = `webrtc://${location.host}/live/${roomId}`;
-            let rtc = null, video = null, hasStream = false;
+            let rtc = null, video = null, hasStream = false, streamTimerInterval = null;
 
             async function isUp() {
                 const r = await fetch(apiDetect).catch(() => null);
@@ -844,9 +845,12 @@
 
             function destroy() {
                 console.log('[DESTROY]');
+                clearInterval(streamTimerInterval);
+                $('#streamDuration').text('00:00:00');
                 if (rtc) { try { rtc.close() } catch (_) { } rtc = null }
                 if (video) { try { video.pause() } catch (_) { } video.remove(); video = null }
                 hasStream = false;
+                $('.stream-container').addClass('offline-stream');
                 $('#offlineOverlay').addClass('active');
             }
 
@@ -867,9 +871,24 @@
                     if (video.srcObject === stream) return;
                     console.log('[ONTRACK]');
                     hasStream = true;
+                    $('.stream-container').removeClass('offline-stream');
                     $('#offlineOverlay').removeClass('active');
                     video.srcObject = stream;
                     video.play().catch(() => { });
+
+                    if (video.muted) {
+                        showToast('#muteToast', 8000);
+                        $('#muteBtn').find('i').removeClass('fa-volume-up').addClass('fa-volume-mute');
+                        $('#muteBtn').find('.tooltip').text('取消静音');
+                    }
+
+                    clearInterval(streamTimerInterval);
+                    streamTimerInterval = setInterval(function () {
+                        if (video && video.readyState > 0 && !video.paused) {
+                            const duration = formatTime(video.currentTime);
+                            $('#streamDuration').text(duration);
+                        }
+                    }, 1000);
                 };
                 rtc.onconnectionstatechange = () => {
                     if (['failed', 'disconnected', 'closed'].includes(rtc.connectionState)) destroy();
@@ -879,7 +898,12 @@
 
             (async () => {
                 $('#loadingContainer').show();
-                if (await isUp()) await create(); else $('#offlineOverlay').addClass('active');
+                if (await isUp()) {
+                    await create();
+                } else {
+                    $('.stream-container').addClass('offline-stream');
+                    $('#offlineOverlay').addClass('active');
+                }
                 $('#loadingContainer').hide();
 
                 setInterval(async () => {
@@ -888,10 +912,12 @@
                     console.log('[TIMER] up', up, 'stream', hasStream, 'playing', playing);
                     if (up && !playing) await create();
                     if (!up && playing) destroy();
+                    $('.stream-container').toggleClass('offline-stream', !hasStream);
                     $('#offlineOverlay').toggleClass('active', !hasStream);
                 }, 2000);
             })();
         }
+
         document.addEventListener('DOMContentLoaded', initLivePlayer);
 
         window.addEventListener('load', () => {
@@ -904,6 +930,45 @@
             const isPinching = e.ctrlKey;
             if (isPinching) e.preventDefault();
         }, { passive: false });
+
+        function showToast(selector, duration = 5000) {
+            const toast = $(selector);
+            toast.addClass('show');
+
+            const closeBtn = toast.find('.close-btn');
+
+            if (duration !== -1) {
+                setTimeout(() => hideToast(selector), duration);
+            }
+
+            closeBtn.on('click', () => hideToast(selector));
+        }
+
+        function hideToast(selector) {
+            $(selector).removeClass('show');
+        }
+
+        function showErrorToast(message, duration = 5000) {
+            $('#errorMessage').text(message);
+            showToast('#errorToast', duration);
+        }
+
+        function showWarningToast(message, duration = 5000) {
+            $('#warningMessage').text(message);
+            showToast('#warningToast', duration);
+        }
+
+        function showSuccessToast(message, duration = 3000) {
+            $('#successMessage').text(message);
+            showToast('#successToast', duration);
+        }
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
 
         $(document).ready(function () {
             let ws = null;
@@ -1287,38 +1352,6 @@
 
             initKeyboardNavigation();
 
-            function showToast(selector, duration = 5000) {
-                const toast = $(selector);
-                toast.addClass('show');
-
-                const closeBtn = toast.find('.close-btn');
-
-                if (duration !== -1) {
-                    setTimeout(() => hideToast(selector), duration);
-                }
-
-                closeBtn.on('click', () => hideToast(selector));
-            }
-
-            function hideToast(selector) {
-                $(selector).removeClass('show');
-            }
-
-            function showErrorToast(message, duration = 5000) {
-                $('#errorMessage').text(message);
-                showToast('#errorToast', duration);
-            }
-
-            function showWarningToast(message, duration = 5000) {
-                $('#warningMessage').text(message);
-                showToast('#warningToast', duration);
-            }
-
-            function showSuccessToast(message, duration = 3000) {
-                $('#successMessage').text(message);
-                showToast('#successToast', duration);
-            }
-
             const themeToggle = $('#themeToggle');
             const themeIcon = $('#themeIcon');
 
@@ -1449,14 +1482,25 @@
                 const messageContent = $('#messageInput').val().trim();
                 if (!messageContent) {
                     return;
-                } if (!currentRoomId) {
-                    console.warn('无法获取房间ID，无法发送消息。');
-                    showErrorToast('无法发送消息，房间ID未定义。');
+                }
+                if (!currentRoomId || currentLoggedInUserId === null) {
+                    const errorMsg = !currentRoomId ? '房间ID未定义' : '无法获取当前用户信息';
+                    showErrorToast(`无法发送消息，${errorMsg}。`);
                     return;
                 }
 
-                $('#messageInput').prop('disabled', true);
-                $('#sendMessageBtn').prop('disabled', true).addClass('opcaty-50 cursor-not-allowed');
+                const isCurrentUserHost = (hostUserId !== null && currentLoggedInUserId === hostUserId);
+                addMessageToChat(
+                    messageContent,
+                    null,
+                    currentLoggedInUserId,
+                    new Date().toISOString(),
+                    isCurrentUserHost
+                );
+                $('#messageInput').val('').focus();
+
+                const sendMessageBtn = $('#sendMessageBtn');
+                sendMessageBtn.prop('disabled', true).addClass('opacity-50');
 
                 try {
                     const response = await fetch('/chat/message', {
@@ -1471,22 +1515,27 @@
                         })
                     });
 
+                    if (!response.ok) {
+                        throw new Error(`Server responded with status: ${response.status}`);
+                    }
+
                     const data = await response.json();
 
-                    if (response.ok && data.success) {
-                        addMessageToChat(messageContent);
-                        $('#messageInput').val('');
-                    } else {
+                    if (!data.success) {
                         console.error('发送消息失败:', data);
-                        showErrorToast(data.message || '发送消息失败。');
+                        showErrorToast(data.message || '发送消息失败，请重试。');
+                        if ($('#messageInput').val() === '') {
+                            $('#messageInput').val(messageContent);
+                        }
                     }
                 } catch (error) {
                     console.error('发送消息时发生错误:', error);
-                    showErrorToast('发送消息时发生错误。');
+                    showErrorToast('消息发送失败，请检查网络连接。');
+                    if ($('#messageInput').val() === '') {
+                        $('#messageInput').val(messageContent);
+                    }
                 } finally {
-                    $('#messageInput').prop('disabled', false);
-                    $('#sendMessageBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
-                    $('#messageInput').val('').focus();
+                    sendMessageBtn.prop('disabled', false).removeClass('opacity-50');
                 }
             }
 
@@ -1505,100 +1554,81 @@
                 const usernameFinal = username || $('#username').text();
                 const userIdFinal = userId || currentLoggedInUserId;
                 const now = timestamp ? new Date(timestamp) : new Date();
-                const time = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const time = timestamp
+                    ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                 const initials = usernameFinal.charAt(0).toUpperCase();
-
                 const userColor = getUserColor(userIdFinal);
+                const safeUserColor = (userColor || '').replace(/[^\w- ]/g, '');
 
                 const isEmojiOnly = isEmojiOnlyMessage(message);
                 const isLong = isLongMessage(message);
 
-                let messageHTML = '';
+                const $avatar = $('<div>')
+                    .addClass(`flex-shrink-0 w-8 h-8 rounded-full ${safeUserColor} flex items-center justify-center text-white font-medium`)
+                    .text(initials);
+
+                const $meta = $('<div>').addClass('flex items-center gap-2')
+                    .append($('<span>').addClass('font-medium').text(usernameFinal))
+                    .append(isHost ? $('<span>').addClass('bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-1.5 py-0.5 rounded').text('HOST') : '')
+                    .append($('<span>').addClass('text-xs text-[var(--text-secondary)]').text(time));
+
+                const $container = $('<div>').addClass('message flex gap-2').append($avatar);
 
                 if (isLong) {
-                    messageHTML = `
-                        <div class="message flex gap-2">
-                            <div class="flex-shrink-0 w-8 h-8 rounded-full ${userColor} flex items-center justify-center text-white font-medium">
-                                ${initials}
-                            </div>
-                            <div class="flex-grow">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-medium">
-                                        ${usernameFinal}
-                                    </span>
-                                    ${isHost ? `<span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-1.5 py-0.5 rounded">HOST</span>` : ''}
-                                    <span class="text-xs text-[var(--text-secondary)]">${time}</span>
-                                </div>
-                                <div class="mt-1">
-                                    <div class="message-wrapper collapsed">
-                                        <div class="p-2 rounded bg-[var(--message-bg)] message-text w-full">
-                                            ${message}
-                                        </div>
-                                    </div>
-                                    <button class="mt-1 text-xs text-[var(--accent-color)]">Show more</button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    let messageContent = isEmojiOnly ? `<span class="emoji-only">${message}</span>` : message;
+                    const $wrapper = $('<div>').addClass('message-wrapper collapsed')
+                        .append($('<div>').addClass('p-2 rounded bg-[var(--message-bg)] message-text w-full').text(message));
 
-                    messageHTML = `
-                        <div class="message flex gap-2">
-                            <div class="flex-shrink-0 w-8 h-8 rounded-full ${userColor} flex items-center justify-center text-white font-medium">
-                            ${initials}
-                            </div>
-                            <div>
-                            <div class="flex items-center gap-2">
-                                <span class="font-medium">
-                                    ${usernameFinal}
-                                </span>
-                                ${isHost ? `<span class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs px-1.5 py-0.5 rounded">HOST</span>` : ''}
-                                <span class="text-xs text-[var(--text-secondary)]">${time}</span>
-                            </div>
-                            <div class="inline-flex mt-1">
-                                <div class="p-2 rounded bg-[var(--message-bg)] message-text">
-                                ${messageContent}
-                                </div>
-                            </div>
-                            </div>
-                        </div>
-                    `;
-                }
+                    const $toggle = $('<button>').addClass('mt-1 text-xs text-[var(--accent-color)]').text('Show more');
 
-                $('#chatContainer').append(messageHTML);
-                $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
-
-                if (isLong) {
-                    $('.message-wrapper').next('button').off('click').on('click', function () {
-                        const wrapper = $(this).prev('.message-wrapper');
-                        if (wrapper.hasClass('collapsed')) {
-                            wrapper.removeClass('collapsed');
-                            $(this).text('Show less');
-                        } else {
-                            wrapper.addClass('collapsed');
-                            $(this).text('Show more');
-                        }
+                    $toggle.on('click', function () {
+                        const collapsed = $wrapper.toggleClass('collapsed').hasClass('collapsed');
+                        $(this).text(collapsed ? 'Show more' : 'Show less');
                     });
+
+                    $container.append(
+                        $('<div>').addClass('flex-grow')
+                            .append($meta)
+                            .append($('<div>').addClass('mt-1').append($wrapper).append($toggle))
+                    );
+                } else {
+                    const $msgText = $('<div>').addClass('p-2 rounded bg-[var(--message-bg)] message-text')
+                        .append(isEmojiOnly ? $('<span>').addClass('emoji-only').text(message) : $('<span>').text(message));
+
+                    $container.append(
+                        $('<div>')
+                            .append($meta)
+                            .append($('<div>').addClass('inline-flex mt-1').append($msgText))
+                    );
                 }
+
+                $('#chatContainer').append($container);
+                $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
             }
 
             function addSystemMessageToChat(message, timestamp = null) {
                 const now = timestamp ? new Date(timestamp) : new Date();
-                const time = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const time = timestamp
+                    ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-                const systemMessageHTML = `
-                    <div class="message flex justify-center my-3">
-                        <div class="flex items-center gap-2 px-3 py-2 bg-[var(--secondary-bg)] rounded-full text-sm text-[var(--text-secondary)]">
-                            <i class="fas fa-info-circle text-[var(--accent-color)]" aria-hidden="true"></i>
-                            <span>${message}</span>
-                            <span class="text-xs opacity-75">${time}</span>
-                        </div>
-                    </div>
-                `;
+                const $icon = $('<i>')
+                    .addClass('fas fa-info-circle text-[var(--accent-color)]')
+                    .attr('aria-hidden', 'true');
 
-                $('#chatContainer').append(systemMessageHTML);
+                const $msgText = $('<span>').text(message);
+                const $timeText = $('<span>').addClass('text-xs opacity-75').text(time);
+
+                const $inner = $('<div>')
+                    .addClass('flex items-center gap-2 px-3 py-2 bg-[var(--secondary-bg)] rounded-full text-sm text-[var(--text-secondary)]')
+                    .append($icon, $msgText, $timeText);
+
+                const $wrapper = $('<div>')
+                    .addClass('message flex justify-center my-3')
+                    .append($inner);
+
+                $('#chatContainer').append($wrapper);
                 $('#chatContainer').scrollTop($('#chatContainer')[0].scrollHeight);
             }
 
@@ -1612,85 +1642,6 @@
                         alert(error);
                     })
             });
-
-            const isLiveStreaming = true;
-            setupMockStream(isLiveStreaming);
-
-            function setupMockStream(isLive = true) {
-                const video = document.getElementById('streamVideo');
-                const offlineOverlay = document.getElementById('offlineOverlay');
-                const loadingContainer = document.getElementById('loadingContainer');
-
-                if (isLive) {
-                    offlineOverlay.classList.remove('active');
-                    // TODO: 在生产环境中替换为实际的直播流地址
-                    // video.src = 'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4';
-                    video.muted = true;
-
-                    video.onloadeddata = function () {
-                        setTimeout(() => {
-                            loadingContainer.style.display = 'none';
-                        }, 1000);
-                    };
-
-                    video.play().then(() => {
-                        if (video.muted) {
-                            showToast('#muteToast', 8000);
-                            $('#muteBtn').find('i').removeClass('fa-volume-up').addClass('fa-volume-mute');
-                            $('#muteBtn').find('.tooltip').text('取消静音');
-                            isMuted = true;
-                            video.muted = true;
-                        }
-                    }).catch(e => {
-                        console.error("Play error:", e);
-                        showToast('#muteToast', 8000);
-                    });
-                } else {
-                    loadingContainer.style.display = 'none';
-                    offlineOverlay.classList.add('active');
-                    video.pause();
-                    video.removeAttribute('src');
-                    video.load();
-                }
-
-                setInterval(function () {
-                    if (video.readyState > 0 && !video.paused) {
-                        const duration = formatTime(video.currentTime);
-                        $('#streamDuration').text(duration);
-                    }
-                }, 1000);
-            }
-
-            function setStreamLiveStatus(isLive) {
-                setupMockStream(isLive);
-
-                const controls = $('.live-controls');
-                const viewerCountOverlay = $('.absolute.top-4.right-4');
-                const streamContainer = $('.stream-container');
-
-                if (!isLive) {
-                    controls.css('opacity', '0');
-                    controls.css('pointer-events', 'none');
-                    viewerCountOverlay.hide();
-                    $('#viewerCount').text('0');
-                    $('#totalViewers').text('0');
-                    $('#viewersList').empty();
-
-                    streamContainer.addClass('offline-stream');
-                } else {
-                    controls.css('pointer-events', 'auto');
-                    viewerCountOverlay.show();
-
-                    streamContainer.removeClass('offline-stream');
-                }
-            }
-
-            function formatTime(seconds) {
-                const h = Math.floor(seconds / 3600);
-                const m = Math.floor((seconds % 3600) / 60);
-                const s = Math.floor(seconds % 60);
-                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-            }
 
             async function getUserDetails(userId) {
                 if (typeof userId !== 'number') {
@@ -1755,110 +1706,115 @@
             async function fetchViewersList() {
                 if (!currentRoomId) {
                     console.error('当前直播间ID未设置，无法获取观众列表。');
-                    $('#viewersList').empty().append('<p class="text-center text-[var(--text-secondary)]]">无法加载房间列表。</p>')
+                    $('#viewersList').empty().append(
+                        $('<p>').addClass('text-center text-[var(--text-secondary)]').text('无法加载房间列表。')
+                    );
                     return;
                 }
-                console.log('Fetching viewers list for room:', currentRoomId);
+
                 try {
-                    const response = await fetch(`/room/user_list`, {
+                    const response = await fetch('/room/user_list', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Accept': 'application/json'
+                            Accept: 'application/json'
                         },
                         body: JSON.stringify({ room: currentRoomId })
                     });
 
                     const data = await response.json();
-                    if (data.success && data.payload && data.payload.users) {
-                        const users = data.payload.users;
 
-                        const currentUsername = $('#username').text();
-                        currentLoggedInUserId = null;
-                        const loggedInUserObject = users.find(user => user.name === currentUsername);
-                        if (loggedInUserObject) {
-                            currentLoggedInUserId = loggedInUserObject.id;
-                        } else {
-                            console.warn('列表中找不到当前用户。');
+                    if (!(data.success && data.payload && data.payload.users)) {
+                        const err = data.payload && data.payload.error ? data.payload.error : '未知错误';
+                        console.error('获取观众列表失败:', err);
+                        showErrorToast(`获取观众列表失败: ${err}`);
+                        $('#viewersList').empty().append(
+                            $('<p>').addClass('text-center text-[var(--text-secondary)]').text('无法加载观众列表')
+                        );
+                        $('#totalViewers,#viewerCount').text('0');
+                        return;
+                    }
+
+                    const users = data.payload.users;
+                    const currentUsername = $('#username').text();
+                    currentLoggedInUserId = null;
+                    const loggedInUserObject = users.find(u => u.name === currentUsername);
+                    if (loggedInUserObject) currentLoggedInUserId = loggedInUserObject.id;
+
+                    cachedUsers.clear();
+                    const $viewerList = $('#viewersList').empty();
+                    const statusClasses = {
+                        host: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
+                        online: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                    };
+
+                    users.forEach(user => {
+                        const isUserHost = hostUserId !== null && user.id === hostUserId;
+                        cachedUsers.set(user.id, { id: user.id, username: user.name, isHost: isUserHost });
+
+                        const initials = user.name.charAt(0).toUpperCase();
+                        const safeColor = (getUserColor(user.id) || '').replace(/[^\w- ]/g, '');
+
+                        const $avatar = $('<div>')
+                            .addClass(['w-7', 'h-7', 'rounded-full', safeColor, 'flex', 'items-center', 'justify-center', 'text-white', 'text-sm', 'font-medium'])
+                            .text(initials);
+
+                        const $name = $('<span>').attr('title', user.name).text(user.name);
+
+                        const $status = $('<span>')
+                            .addClass(['text-xs', (isUserHost ? statusClasses.host : statusClasses.online), 'px-1.5', 'py-0.5', 'rounded'])
+                            .text(isUserHost ? 'Host' : 'Online');
+
+                        const $left = $('<div>').addClass('flex items-center gap-2').append($avatar, $name);
+                        const $right = $('<div>').addClass('flex items-center gap-1');
+
+                        if (currentLoggedInUserId && hostUserId && currentLoggedInUserId === hostUserId && !isUserHost) {
+                            const $btn = $('<button>')
+                                .addClass('transfer-ownership-btn no-focus ml-1 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-[var(--primary-bg)] transition-colors')
+                                .attr({
+                                    'data-userid': user.id,
+                                    'data-username': user.name,
+                                    title: `转移所有权给 ${user.name}`,
+                                    'aria-label': `将所有权转移给 ${user.name}`
+                                })
+                                .append($('<i>').addClass('fas fa-crown w-4 h-4 pointer-events-none'));
+                            $right.append($btn);
                         }
 
-                        const viewerHTMLs = [];
-                        cachedUsers.clear();
+                        $right.append($status);
 
-                        users.forEach(user => {
-                            const isUserHost = (hostUserId !== null && user.id === hostUserId);
+                        const $item = $('<div>')
+                            .addClass('flex items-center justify-between p-2 hover:bg-[var(--hover-bg)] rounded')
+                            .append($left, $right);
 
-                            cachedUsers.set(user.id, {
-                                id: user.id,
-                                username: user.name,
-                                isHost: isUserHost
-                            });
+                        $viewerList.append($item);
+                    });
 
-                            const initials = user.name.charAt(0).toUpperCase();
-                            const userColor = getUserColor(user.id);
-                            const statusClass = isUserHost
-                                ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
-                                : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
-                            const statusText = isUserHost ? 'Host' : 'Online';
+                    $('#viewersList').off('click', '.transfer-ownership-btn').on('click', '.transfer-ownership-btn', async function () {
+                        const $btn = $(this);
+                        if ($btn.prop('disabled')) return;
 
-                            let transferButtonHTML = '';
+                        const targetUserId = parseInt($btn.data('userid'), 10);
+                        const targetUsername = $btn.data('username');
 
-                            if (currentLoggedInUserId && hostUserId && currentLoggedInUserId === hostUserId && !isUserHost) {
-                                transferButtonHTML = `
-                                    <button
-                                        title="转移所有权给 ${user.name}"
-                                        aria-label="将所有权转移给 ${user.name}"
-                                        data-userid="${user.id}"
-                                        data-username="${user.name.replace(/"/g, '&quot;')}"
-                                        class="transfer-ownership-btn no-focus ml-1 p-1.5 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-color)] focus-visible:ring-offset-1 dark:focus-visible:ring-offset-[var(--primary-bg)] transition-colors"
-                                    >
-                                        <i class="fas fa-crown w-4 h-4 pointer-events-none"></i>
-                                    </button>
-                                `;
-                            }
+                        $btn.prop('disabled', true).addClass('opacity-50');
 
-                            viewerHTMLs.push(`
-                                <div class="flex items-center justify-between p-2 hover:bg-[var(--hover-bg)] rounded">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-7 h-7 rounded-full ${userColor} flex items-center justify-center text-white text-sm font-medium">
-                                            ${initials}
-                                        </div>
-                                        <span title="${user.name}">
-                                            ${user.name}
-                                        </span>
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        ${transferButtonHTML}
-                                        <span class="text-xs ${statusClass} px-1.5 py-0.5 rounded">${statusText}</span>
-                                    </div>
-                                </div>
-                            `);
-                        });
+                        try {
+                            await handleTransferOwnership(targetUserId, targetUsername);
+                        } catch (e) {
+                            console.error("Transfer ownership failed at handler level", e);
+                        } finally {
+                            setTimeout(() => {
+                                $btn.prop('disabled', false).removeClass('opacity-50');
+                            }, 1000);
+                        }
+                    });
 
-                        $('#viewersList').empty().html(viewerHTMLs.join(''));
-
-                        $('#viewersList').off('click', '.transfer-ownership-btn').on('click', '.transfer-ownership-btn', function () {
-                            const targetUserId = parseInt($(this).data('userid'))
-                            const targetUsername = $(this).data('username');
-                            handleTransferOwnership(targetUserId, targetUsername);
-                        });
-
-                        $('#totalViewers').text(users.length.toLocaleString());
-                        console.log('观众列表已更新:', users.length, '观众:', users);
-                        console.log('当前主播id:', hostUserId);
-                    } else if (!data.success && data.payload && data.payload.error) {
-                        console.error('获取观众列表失败:', data.payload.error);
-                        showErrorToast(`获取观众列表失败: ${data.payload.error}`);
-                        $('#viewersList').empty().append('<p class="text-center text-[var(--text-secondary)]">无法加载观众列表</p>');
-                        $('#totalViewers').text('0');
-                        $('#viewerCount').text('0');
-                    } else {
-                        console.error('获取观众列表失败: 未知错误');
-                        showErrorToast(`获取观众列表失败: 未知错误`);
-                    }
+                    $('#totalViewers').text(users.length.toLocaleString());
+                    console.log('观众列表已更新:', users.length, '观众:', users);
                 } catch (error) {
                     console.error('获取观众列表失败:', error);
-                    showErrorToast(`获取观众列表失败: 网络错误`);
+                    showErrorToast('获取观众列表失败: 网络错误');
                 }
             }
 
