@@ -33,13 +33,13 @@ async fn post(State(state): State<AppState>, Json(req): Json<PostRequest>) -> Ax
     let remember = req.remember;
     match user::handle_login(state.repository, req.into()).await {
         Ok(user) => {
-            let jwt = Jwt::http(user.id, state.jwt_exp_duration);
+            let duration = if remember { state.jwt_exp_dur_long } else { state.jwt_exp_duration };
+            let jwt = Jwt::http(user.id, duration);
             let token = jwt.encode(&state.jwt_secret).unwrap_or("wtf?".to_string());
             let post_res = PostResponse { token };
             let mut res = Response::success(Some(serde_json::to_value(&post_res).unwrap())).into_response();
             
             if state.jwt_auth_method.is_cookie() {
-                let duration = if remember { state.jwt_exp_dur_long } else { state.jwt_exp_duration };
                 let cookie = format!(
                     "token={}; Max-Age={}; Path=/; HttpOnly; SameSite=Strict",
                     &post_res.token, duration.num_seconds()

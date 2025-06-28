@@ -31,8 +31,8 @@ async fn main() {
         "0.0.0.0:56657",
         Arc::new(repo),
         "secret".to_string(),
-        Duration::minutes(30),
-        Duration::days(3),
+        Duration::minutes(300),
+        Duration::days(7),
     ).await;
     
     let mut ctrl_c_task = ctrl_c_task().await;
