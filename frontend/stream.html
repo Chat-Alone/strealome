@@ -793,7 +793,7 @@
             <div
                 class="p-3 border-t border-solid border-[var(--border-color)] bg-[var(--secondary-bg)] sticky bottom-0">
                 <div class="flex items-center gap-2">
-                    <input type="text" id="messageInput" tabindex="0" aria-label="输入聊天消息"
+                    <input type="text" id="messageInput" tabindex="0" aria-label="输入聊天消息" autocomplete="off"
                         class="flex-1 px-3 py-2 rounded border border-solid border-[var(--border-color)] bg-[var(--primary-bg)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]"
                         placeholder="输入消息..." />
                     <button id="sendMessageBtn" tabindex="0" aria-label="发送消息"
@@ -811,18 +811,6 @@
     </footer>
 
     <script>
-            (function () {
-                const rawOpen = XMLHttpRequest.prototype.open;
-                XMLHttpRequest.prototype.open = function (m, u) {
-                    if (m === 'POST' && typeof u === 'string' && u.indexOf('/rtc/v1/') !== -1) {
-                        const nu = u.replace('/rtc/v1/', '/srs-api/rtc/v1/');
-                        console.log('[XHR-PATCH] POST', u, '→', nu);
-                        arguments[1] = nu;
-                    }
-                    return rawOpen.apply(this, arguments);
-                };
-            })();
-
         function initLivePlayer() {
             const ps = location.pathname.split('/');
             const roomId = ps[1] === 'share' ? ps[2] : null;
@@ -832,7 +820,7 @@
                 $('#offlineOverlay').text('无效房间号').addClass('active');
                 return;
             }
-            const apiDetect = `/srs-api/api/v1/streams/?query={"name":"${roomId}"}`;
+            const apiDetect = `/api/v1/streams/?query={"name":"${roomId}"}`;
             const playUrl = `webrtc://${location.host}/live/${roomId}`;
             let rtc = null, video = null, hasStream = false, streamTimerInterval = null;
 

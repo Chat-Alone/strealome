@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Alone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"
+        integrity="sha256-oP6HI9z1XaZNBrJURtCoUT5SUnxFr8s3BzRl+cbzUq8=" crossorigin="anonymous"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <style>
+        :root {
+            --primary-bg: #ffffff;
+            --secondary-bg: #f9fafb;
+            --border-color: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --accent-color: #3b82f6;
+            --particle-color: rgba(0, 0, 0, 0.25);
+        }
+
+        .dark {
+            --primary-bg: #111111;
+            --secondary-bg: #1a1a1a;
+            --border-color: #2a2a2a;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --accent-color: #3b82f6;
+            --particle-color: rgba(255, 255, 255, 0.25);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            position: relative;
+        }
+
+        #particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            display: none;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 10;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background-color: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 50;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .dark .theme-toggle:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        #alone-word {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-decoration-color: var(--accent-color);
+            text-underline-offset: 4px;
+            transition: all 0.2s ease;
+        }
+
+        #alone-word:hover {
+            background-color: color-mix(in srgb, var(--accent-color) 15%, transparent);
+        }
+
+        #alone-tooltip {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            background-color: var(--secondary-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            max-width: calc(100vw - 32px);
+            box-sizing: border-box;
+            text-align: center;
+            white-space: normal;
+            transform: translateX(-50%) translateY(10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        #alone-tooltip.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin-bottom: 4px;
+        }
+
+        .role {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .section-card {
+            background-color: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .section-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        }
+
+        .dark .section-card:hover {
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .member-item,
+        .support-item {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .support-item {
+            padding: 12px 0;
+        }
+
+        .member-item:last-child,
+        .support-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .member-item:first-child,
+        .support-item:first-child {
+            padding-top: 0;
+        }
+
+        .matrix-mode {
+            font-family: 'Space Mono', monospace !important;
+            --text-primary: #34d399 !important;
+            --text-secondary: #6ee7b7 !important;
+            --accent-color: #a7f3d0 !important;
+            --border-color: #047857 !important;
+            --primary-bg: #0c0c0c !important;
+            --secondary-bg: #121212 !important;
+            --particle-color: rgba(52, 211, 153, 0.4) !important;
+            text-shadow: 0 0 3px rgba(52, 211, 153, 0.7);
+        }
+
+        .matrix-mode .theme-toggle {
+            border-color: #047857 !important;
+            background-color: #121212 !important;
+        }
+
+        .matrix-mode .theme-toggle i {
+            color: #34d399 !important;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-primary">
+
+    <canvas id="particle-canvas"></canvas>
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="content-wrapper">
+        <button id="themeToggle" class="theme-toggle">
+            <i id="themeIcon" class="fas fa-moon text-primary"></i>
+        </button>
+
+        <div class="min-h-screen flex items-center justify-center px-4 py-8">
+            <div class="w-full max-w-2xl">
+
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-primary mb-3">
+                        Stream <span id="alone-word">Alone</span>
+                    </h1>
+                    <p class="text-secondary">现代化、极简风格的自托管直播应用</p>
+                </div>
+
+                <div id="alone-tooltip">但你在这里并不孤单，感谢来访！❤️</div>
+
+                <div class="section-card">
+                    <h2 class="text-xl font-semibold text-primary mb-6">项目成员</h2>
+                    <div class="member-item">
+                        <div class="name">浮玉人</div>
+                        <div class="role">前端 & 直播流调试</div>
+                    </div>
+                    <div class="member-item">
+                        <div class="name">Lechi66</div>
+                        <div class="role">后端</div>
+                    </div>
+                </div>
+
+                <div class="section-card">
+                    <h2 class="text-xl font-semibold text-primary mb-6">技术与服务支持</h2>
+                    <div class="support-item text-secondary text-sm">
+                        <span class="font-semibold text-primary">云服务器</span> 由「雨云」提供
+                    </div>
+                    <div class="support-item text-secondary text-sm">
+                        <span class="font-semibold text-primary">安全证书</span> 由「Let's Encrypt」提供
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            const themeToggle = $('#themeToggle');
+            const themeIcon = $('#themeIcon');
+            const body = $('body');
+            let themeClickCount = 0;
+            let lastThemeClickTime = 0;
+            let isMatrixMode = false;
+
+            function setTheme(theme, force = false) {
+                if (isMatrixMode && !force) return;
+                if (theme === 'dark') {
+                    body.addClass('dark');
+                    themeIcon.removeClass('fa-moon').addClass('fa-sun');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    body.removeClass('dark');
+                    themeIcon.removeClass('fa-sun').addClass('fa-moon');
+                    localStorage.setItem('theme', 'light');
+                }
+                if (window.updateParticleStyle) {
+                    window.updateParticleStyle();
+                }
+            }
+
+            function initTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                setTheme(savedTheme === 'dark' || (!savedTheme && systemDark) ? 'dark' : 'light');
+            }
+
+            function enterMatrixMode() {
+                isMatrixMode = true;
+                body.addClass('matrix-mode');
+                themeIcon.removeClass('fa-moon fa-sun').addClass('fa-user-secret');
+                $('#particle-canvas').hide();
+                $('#matrix-canvas').show();
+                if (window.startMatrixAnimation) {
+                    window.startMatrixAnimation();
+                }
+            }
+
+            function exitMatrixMode() {
+                isMatrixMode = false;
+                body.removeClass('matrix-mode');
+                $('#matrix-canvas').hide();
+                $('#particle-canvas').show();
+                if (window.stopMatrixAnimation) {
+                    window.stopMatrixAnimation();
+                }
+                initTheme();
+                if (window.startParticleAnimation) {
+                    window.startParticleAnimation();
+                }
+            }
+
+            themeToggle.on('click', function () {
+                if (isMatrixMode) {
+                    exitMatrixMode();
+                    return;
+                }
+
+                setTheme(body.hasClass('dark') ? 'light' : 'dark');
+
+                const now = Date.now();
+                if (now - lastThemeClickTime < 400) {
+                    themeClickCount++;
+                } else {
+                    themeClickCount = 1;
+                }
+                lastThemeClickTime = now;
+
+                if (themeClickCount >= 3) {
+                    enterMatrixMode();
+                    themeClickCount = 0;
+                }
+            });
+
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+                if (!localStorage.getItem('theme') && !isMatrixMode) {
+                    initTheme();
+                }
+            });
+
+            initTheme();
+
+            const canvas = document.getElementById('particle-canvas');
+            const ctx = canvas.getContext('2d');
+            const matrixCanvas = document.getElementById('matrix-canvas');
+            const matrixCtx = matrixCanvas.getContext('2d');
+            let particles = [];
+            let particleColor;
+            let mouse = { x: null, y: null };
+            let animationFrameId;
+            let matrixAnimationId;
+            let matrixChars = [];
+            let matrixStreams = [];
+            const fontSize = 16;
+            const columnWidth = 18;
+            let cols, rows;
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                matrixCanvas.width = window.innerWidth;
+                matrixCanvas.height = window.innerHeight;
+                cols = Math.floor(matrixCanvas.width / columnWidth);
+                rows = Math.floor(matrixCanvas.height / fontSize);
+                if (isMatrixMode) {
+                    initMatrix();
+                }
+            }
+
+            function initMatrix() {
+                const charSet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()_+-=[]{}|;:,.<>?';
+                matrixChars = [];
+                for (let x = 0; x < cols; x++) {
+                    matrixChars[x] = [];
+                    for (let y = 0; y < rows; y++) {
+                        matrixChars[x][y] = charSet[Math.floor(Math.random() * charSet.length)];
+                    }
+                }
+
+                matrixStreams = [];
+                for (let i = 0; i < cols / 5; i++) {
+                    matrixStreams.push({
+                        x: Math.floor(Math.random() * cols),
+                        y: Math.random() * -rows,
+                        speed: Math.random() * 2 + 1,
+                        length: Math.random() * (rows * 0.5) + (rows * 0.2),
+                    });
+                }
+            }
+
+
+            window.updateParticleStyle = function () {
+                particleColor = getComputedStyle(document.documentElement).getPropertyValue('--particle-color').trim();
+            }
+
+            function createParticles() {
+                particles = [];
+                const particleCount = Math.floor(canvas.width * canvas.height / 25000);
+                for (let i = 0; i < particleCount; i++) {
+                    particles.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        radius: Math.random() * 2 + 1,
+                        vx: (Math.random() - 0.5) * 0.5,
+                        vy: (Math.random() - 0.5) * 0.5
+                    });
+                }
+            }
+
+            function connectParticles() {
+                ctx.globalAlpha = 1;
+                for (let i = 0; i < particles.length; i++) {
+                    for (let j = i; j < particles.length; j++) {
+                        const dist = Math.hypot(particles[i].x - particles[j].x, particles[i].y - particles[j].y);
+                        if (dist < 120) {
+                            ctx.strokeStyle = particleColor;
+                            ctx.lineWidth = 0.5;
+                            ctx.globalAlpha = 1 - (dist / 120);
+                            ctx.beginPath();
+                            ctx.moveTo(particles[i].x, particles[i].y);
+                            ctx.lineTo(particles[j].x, particles[j].y);
+                            ctx.stroke();
+                        }
+                    }
+                    const distToMouse = mouse.x ? Math.hypot(particles[i].x - mouse.x, particles[i].y - mouse.y) : Infinity;
+                    if (distToMouse < 150) {
+                        ctx.strokeStyle = particleColor;
+                        ctx.lineWidth = 0.8;
+                        ctx.globalAlpha = 1 - (distToMouse / 150);
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.stroke();
+                    }
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            function animateParticles() {
+                if (isMatrixMode) return;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = particleColor;
+
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                connectParticles();
+                animationFrameId = requestAnimationFrame(animateParticles);
+            }
+
+            function animateMatrix() {
+                if (!isMatrixMode) return;
+
+                matrixCtx.fillStyle = '#0c0c0c';
+                matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+                matrixCtx.font = fontSize + 'px Space Mono';
+
+                matrixStreams.forEach(stream => {
+                    for (let i = 0; i < stream.length; i++) {
+                        const charIndexY = Math.floor(stream.y - i);
+                        if (charIndexY >= 0 && charIndexY < rows && matrixChars[stream.x]) {
+                            const character = matrixChars[stream.x][charIndexY];
+                            const yPos = charIndexY * fontSize + fontSize;
+
+                            if (i === 0) {
+                                matrixCtx.fillStyle = '#f0f0f0';
+                                matrixCtx.shadowColor = '#34d399';
+                                matrixCtx.shadowBlur = 10;
+                            } else {
+                                matrixCtx.shadowBlur = 0;
+                                const alpha = Math.max(0, 1 - (i / stream.length));
+                                matrixCtx.fillStyle = `rgba(52, 211, 153, ${alpha})`;
+                            }
+
+                            if (character) {
+                                matrixCtx.fillText(character, stream.x * columnWidth, yPos);
+                            }
+                        }
+                    }
+
+                    stream.y += stream.speed / 20;
+
+                    if (stream.y - stream.length > rows) {
+                        stream.y = Math.random() * -rows;
+                        stream.x = Math.floor(Math.random() * cols);
+                        stream.length = Math.random() * (rows * 0.5) + (rows * 0.2);
+                        stream.speed = Math.random() * 2 + 1;
+                    }
+                });
+
+                matrixCtx.shadowBlur = 0;
+                matrixAnimationId = requestAnimationFrame(animateMatrix);
+            }
+
+            window.startParticleAnimation = function () {
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                resizeCanvas();
+                updateParticleStyle();
+                createParticles();
+                animateParticles();
+            }
+
+            window.startMatrixAnimation = function () {
+                if (matrixAnimationId) cancelAnimationFrame(matrixAnimationId);
+                resizeCanvas();
+                matrixAnimationId = requestAnimationFrame(animateMatrix);
+            }
+
+            window.stopMatrixAnimation = function () {
+                if (matrixAnimationId) {
+                    cancelAnimationFrame(matrixAnimationId);
+                    matrixAnimationId = null;
+                }
+            }
+
+            window.startParticleAnimation();
+            window.addEventListener('resize', function () {
+                resizeCanvas();
+                if (isMatrixMode) {
+                    if (matrixAnimationId) cancelAnimationFrame(matrixAnimationId);
+                    matrixAnimationId = requestAnimationFrame(animateMatrix);
+                } else {
+                    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                    updateParticleStyle();
+                    createParticles();
+                    animateParticles();
+                }
+            });
+            window.addEventListener('mousemove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+            window.addEventListener('mouseleave', () => { mouse.x = null; mouse.y = null; });
+
+            const aloneWord = $('#alone-word');
+            const aloneTooltip = $('#alone-tooltip');
+
+            aloneWord.on('mouseenter', function () {
+                const wordRect = aloneWord[0].getBoundingClientRect();
+                const tooltipText = isMatrixMode ? '👽' : '但你在这里并不孤单，感谢来访！❤️';
+
+                aloneTooltip.text(tooltipText).css({
+                    top: wordRect.bottom + 10 + $(window).scrollTop(),
+                    left: wordRect.left + wordRect.width / 2,
+                });
+
+                aloneTooltip.addClass('visible');
+            });
+
+            aloneWord.on('mouseleave', function () {
+                aloneTooltip.removeClass('visible');
+            });
+
+            $(document).on('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    if (isMatrixMode) {
+                        exitMatrixMode();
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
