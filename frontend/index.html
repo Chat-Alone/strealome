@@ -364,7 +364,7 @@
                     AppState.allRooms = data.related_rooms.map(apiRoom => ({
                         id: apiRoom.share_link,
                         name: apiRoom.name,
-                        creator: apiRoom.host,
+                        creator: apiRoom.host_name,
                         createTime: formatISODate(apiRoom.created_at),
                         status: apiRoom.hosting ? 'live' : 'offline',
                         audienceCount: apiRoom.member_cnt
