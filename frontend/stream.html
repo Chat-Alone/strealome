@@ -608,6 +608,62 @@
             bottom: -3px;
         }
 
+        .copyable-text {
+            cursor: pointer;
+            padding: 2px 6px;
+            margin-left: 4px;
+            background-color: var(--secondary-bg);
+            border-radius: 4px;
+            border-bottom: 1px dotted var(--text-secondary);
+            font-family: 'Space Mono', monospace;
+            transition: all 0.2s ease;
+            display: inline-block;
+        }
+
+        .copyable-text:hover {
+            background-color: var(--hover-bg);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        #tutorialModalPanel {
+            will-change: transform;
+            /* 优化动画性能 */
+        }
+
+        #tutorialModalPanel main {
+            will-change: scroll-position;
+            /* 优化滚动性能 */
+            contain: layout style;
+            /* 隔离内容，防止重绘影响外部 */
+        }
+
+        .copy-block {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.75rem;
+            background-color: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .copy-block:hover {
+            border-color: var(--accent-color);
+        }
+
+        .copy-block .copy-icon {
+            color: var(--text-secondary);
+            transition: color 0.2s ease, transform 0.2s ease;
+        }
+
+        .copy-block:hover .copy-icon {
+            color: var(--accent-color);
+            transform: scale(1.1);
+        }
+
         @media (prefers-contrast: high) {
             :root {
                 --focus-ring: #0066cc;
@@ -698,6 +754,11 @@
                         class="hidden sm:inline">登出</span>
                 </button>
             </div>
+
+            <button id="tutorialBtn" tabindex="0" aria-label="查看推流教程"
+                class="hidden sm:flex text-xs sm:text-sm whitespace-nowrap px-2 py-1 rounded border border-[var(--border-color)] bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors items-center gap-1">
+                <i class="fas fa-info-circle text-[var(--icon-color)]" aria-hidden="true"></i><span>教程</span>
+            </button>
 
             <button id="themeToggle" tabindex="0" aria-label="切换主题"
                 class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0 ml-1">
@@ -805,6 +866,78 @@
         </div>
     </div>
 
+    <div id="tutorialModal"
+        class="fixed inset-0 z-[1001] flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 hidden">
+        <div id="tutorialModalPanel"
+            class="bg-[var(--primary-bg)] rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overscroll-contain">
+            <header class="flex items-center justify-between p-4 border-b border-[var(--border-color)] flex-shrink-0">
+                <h2 class="text-lg font-semibold text-[var(--text-primary)]">推流设置指南 (OBS)</h2>
+                <button id="closeTutorialModal" aria-label="关闭教程"
+                    class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--hover-bg)] text-[var(--text-secondary)] transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </header>
+            <main class="flex-1 p-6 overflow-y-auto space-y-6">
+                <section class="border border-[var(--border-color)] rounded-lg p-4">
+                    <h3 class="text-md font-semibold text-[var(--text-primary)] mb-4">1. 关键信息</h3>
+                    <div class="space-y-3">
+                        <div class="space-y-1">
+                            <label class="text-sm font-medium text-[var(--text-secondary)]">服务器 URL</label>
+                            <div data-copy="rtmp://stream.chatalone.asia/live" class="copy-block">
+                                <span
+                                    class="font-geist-mono text-[var(--text-primary)]">rtmp://stream.chatalone.asia/live</span>
+                                <i class="fas fa-copy copy-icon"></i>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-sm font-medium text-[var(--text-secondary)]">推流码 (Stream Key)</label>
+                            <div id="streamKey" data-copy="" class="copy-block">
+                                <span class="font-geist-mono text-[var(--text-primary)]">[房间号]</span>
+                                <i class="fas fa-copy copy-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="border border-[var(--border-color)] rounded-lg p-4">
+                    <h3 class="text-md font-semibold text-[var(--text-primary)] mb-4">2. 输出设置 <code
+                            class="text-xs font-normal bg-[var(--hover-bg)] text-[var(--text-secondary)] px-1.5 py-0.5 rounded-md">设置 > 输出</code>
+                    </h3>
+                    <ul class="list-disc list-outside space-y-2 pl-5 text-[var(--text-secondary)] text-sm">
+                        <li>将 <strong class="font-semibold text-[var(--text-primary)]">输出模式</strong> 设为 <code
+                                class="font-geist-mono">高级</code>.</li>
+                        <li>在 <strong class="font-semibold text-[var(--text-primary)]">直播</strong> 选项卡中:
+                            <ul class="list-['-_'] list-outside space-y-1 pl-6 mt-2">
+                                <li>视频编码器: <code class="font-geist-mono">x264</code> (若有NVIDIA显卡可选 <code
+                                        class="font-geist-mono">NVIDIA NVENC H.264</code>)</li>
+                                <li>码率控制: <code class="font-geist-mono">CBR</code>, 比特率: <code
+                                        class="font-geist-mono">1500-2500</code> Kbps</li>
+                                <li>关键帧间隔: <code class="font-geist-mono">2</code>s, CPU预设: <code
+                                        class="font-geist-mono">veryfast</code></li>
+                                <li>配置 (Profile): <code class="font-geist-mono">baseline</code>, 微调 (Tune): <code
+                                        class="font-geist-mono">zerolatency</code></li>
+                            </ul>
+                        </li>
+                        <li>在 <strong class="font-semibold text-[var(--text-primary)]">音频</strong> 选项卡中, 将轨道1音频比特率设为
+                            <code class="font-geist-mono">96</code>.
+                        </li>
+                    </ul>
+                </section>
+
+                <section class="border border-[var(--border-color)] rounded-lg p-4">
+                    <h3 class="text-md font-semibold text-[var(--text-primary)] mb-4">3. 视频设置 <code
+                            class="text-xs font-normal bg-[var(--hover-bg)] text-[var(--text-secondary)] px-1.5 py-0.5 rounded-md">设置 > 视频</code>
+                    </h3>
+                    <ul class="list-disc list-outside space-y-2 pl-5 text-[var(--text-secondary)] text-sm">
+                        <li>基础与输出分辨率 <strong class="font-semibold text-[var(--text-primary)]">必须相同</strong> (推荐 <code
+                                class="font-geist-mono">1280x720</code>).</li>
+                        <li>常用 FPS (帧率): <code class="font-geist-mono">30</code>.</li>
+                    </ul>
+                </section>
+            </main>
+        </div>
+    </div>
+
     <footer
         class="py-2 px-4 text-xs text-[var(--text-secondary)] text-center border-t border-solid border-[var(--border-color)] mt-auto">
         Stream Alone 2025 &copy; All rights reserved.
@@ -825,10 +958,21 @@
             let rtc = null, video = null, hasStream = false, streamTimerInterval = null;
 
             async function isUp() {
-                const r = await fetch(apiDetect).catch(() => null);
-                if (!r || !r.ok) return false;
-                const j = await r.json();
-                return j.streams && j.streams.length && j.streams[0].publish.active;
+                try {
+                    const r = await fetch(apiDetect);
+                    if (!r.ok) return false;
+                    const j = await r.json();
+
+                    if (!j.streams || !j.streams.length) {
+                        return false;
+                    }
+
+                    const stream = j.streams.find(s => s.name === roomId);
+                    return !!(stream && stream.publish && stream.publish.active);
+                } catch (e) {
+                    console.error('[isUp] check failed:', e);
+                    return false;
+                }
             }
 
             function destroy() {
@@ -900,12 +1044,12 @@
                 setInterval(async () => {
                     const up = await isUp();
                     const playing = !!rtc;
-                    console.log('[TIMER] up', up, 'stream', hasStream, 'playing', playing);
+                    console.log(`[TIMER] room:${roomId} up:${up} stream:${hasStream} playing:${playing}`);
                     if (up && !playing) await create();
                     if (!up && playing) destroy();
                     $('.stream-container').toggleClass('offline-stream', !hasStream);
                     $('#offlineOverlay').toggleClass('active', !hasStream);
-                }, 2000);
+                }, 3000);
             })();
         }
 
@@ -974,6 +1118,84 @@
             let pongTimeoutId = null;
             let pingMessageIdCounter = 0;
             let pingSequenceNumberCounter = 0;
+
+            const tutorialModal = $('#tutorialModal');
+            const tutorialModalPanel = $('#tutorialModalPanel');
+            const tutorialBtn = $('#tutorialBtn');
+            const closeTutorialModalBtn = $('#closeTutorialModal');
+
+            function getRoomIdForTutorial() {
+                const pathParts = window.location.pathname.split('/');
+                if (pathParts.length >= 3 && pathParts[1] === 'share') {
+                    return pathParts[2];
+                }
+                return null;
+            }
+
+            function openTutorialModal() {
+                const roomId = getRoomIdForTutorial();
+                const streamKeyEl = $('#streamKey');
+                if (roomId) {
+                    streamKeyEl.text(roomId).attr('data-copy', roomId).addClass('copyable-text');
+                } else {
+                    streamKeyEl.text('无效房间号').removeClass('copyable-text').removeAttr('data-copy');
+                }
+
+                tutorialModal.removeClass('hidden');
+                tutorialModalPanel.removeClass('modal-animate-out').addClass('modal-animate-in');
+                $('body').addClass('overflow-hidden');
+                closeTutorialModalBtn.focus();
+            }
+
+            function closeTutorialModal() {
+                tutorialModalPanel.removeClass('modal-animate-in').addClass('modal-animate-out');
+                tutorialModalPanel.one('animationend', function () {
+                    tutorialModal.addClass('hidden');
+                    $('body').removeClass('overflow-hidden');
+                });
+            }
+
+            tutorialBtn.on('click', openTutorialModal);
+            closeTutorialModalBtn.on('click', closeTutorialModal);
+
+            tutorialModal.on('click', function (e) {
+                if (e.target === this) {
+                    closeTutorialModal();
+                }
+            });
+
+            $(document).on('keydown', function (e) {
+                if (e.key === 'Escape' && !tutorialModal.hasClass('hidden')) {
+                    closeTutorialModal();
+                }
+            });
+
+            $(document).on('click', '[data-copy]', function () {
+                const textToCopy = $(this).attr('data-copy');
+                if (!textToCopy) {
+                    showWarningToast('没有可复制的内容');
+                    return;
+                }
+
+                if (navigator.clipboard) {
+                    const el = $(this);
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        showSuccessToast('已复制到剪贴板');
+                        const icon = el.find('.copy-icon');
+                        if (icon.length) {
+                            const originalIcon = 'fa-copy';
+                            icon.removeClass(originalIcon).addClass('fa-check text-green-500');
+                            setTimeout(() => {
+                                icon.removeClass('fa-check text-green-500').addClass(originalIcon);
+                            }, 2000);
+                        }
+                    }).catch(err => {
+                        showErrorToast('复制失败: ' + err);
+                    });
+                } else {
+                    showErrorToast('您的浏览器不支持自动复制功能。');
+                }
+            });
 
             function getRoomIdFromUrl() {
                 const pathParts = window.location.pathname.split('/');
