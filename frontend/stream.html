@@ -725,8 +725,8 @@
                 <div class="flex items-center gap-3">
                     <button id="muteBtn" tabindex="0" aria-label="切换静音状态"
                         class="tooltip-container w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors">
-                        <i class="fas fa-volume-up text-white" aria-hidden="true"></i>
-                        <span class="tooltip">静音</span>
+                        <i class="fas fa-volume-mute text-white" aria-hidden="true"></i>
+                        <span class="tooltip">取消静音</span>
                     </button>
                     <input type="range" class="volume-slider" min="0" max="100" value="50" id="volumeSlider"
                         tabindex="0" aria-label="音量控制">
@@ -848,7 +848,12 @@
                 video = document.createElement('video');
                 video.id = 'streamVideo';
                 video.autoplay = true;
-                video.muted = true;
+
+                const lastMutedState = $('#muteBtn i').hasClass('fa-volume-mute');
+                const lastVolume = $('#volumeSlider').val() / 100;
+                video.muted = lastMutedState;
+                video.volume = lastVolume;
+
                 video.playsInline = true;
                 video.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000';
                 $('#streamPlayer').empty().append(video);
@@ -866,8 +871,6 @@
 
                     if (video.muted) {
                         showToast('#muteToast', 8000);
-                        $('#muteBtn').find('i').removeClass('fa-volume-up').addClass('fa-volume-mute');
-                        $('#muteBtn').find('.tooltip').text('取消静音');
                     }
 
                     clearInterval(streamTimerInterval);
@@ -1386,17 +1389,18 @@
                 }
             });
 
-            let isMuted = false;
             $('#muteBtn').on('click', function () {
-                isMuted = !isMuted;
-                if (isMuted) {
+                const video = $('#streamVideo')[0];
+                if (!video) return;
+
+                video.muted = !video.muted;
+
+                if (video.muted) {
                     $(this).find('i').removeClass('fa-volume-up').addClass('fa-volume-mute');
                     $(this).find('.tooltip').text('取消静音');
-                    $('#streamVideo')[0].muted = true;
                 } else {
                     $(this).find('i').removeClass('fa-volume-mute').addClass('fa-volume-up');
                     $(this).find('.tooltip').text('静音');
-                    $('#streamVideo')[0].muted = false;
                     hideToast('#muteToast');
                 }
             });
@@ -1404,22 +1408,18 @@
             $('#volumeSlider').on('input', function () {
                 const volume = $(this).val() / 100;
                 const video = $('#streamVideo')[0];
+                if (!video) return;
+
                 video.volume = volume;
 
-                if (volume === 0) {
+                if (volume === 0 && !video.muted) {
+                    video.muted = true;
                     $('#muteBtn').find('i').removeClass('fa-volume-up').addClass('fa-volume-mute');
                     $('#muteBtn').find('.tooltip').text('取消静音');
-                    isMuted = true;
-                    video.muted = true;
-                } else if (isMuted) {
+                } else if (volume > 0 && video.muted) {
+                    video.muted = false;
                     $('#muteBtn').find('i').removeClass('fa-volume-mute').addClass('fa-volume-up');
                     $('#muteBtn').find('.tooltip').text('静音');
-                    isMuted = false;
-                    video.muted = false;
-                    hideToast('#muteToast');
-                }
-
-                if (volume > 0 && !video.muted) {
                     hideToast('#muteToast');
                 }
             });
@@ -1935,6 +1935,7 @@
                 setTimeout(sendPing, 1000);
             }
         });
+
     </script>
 </body>
 
