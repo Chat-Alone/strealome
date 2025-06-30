@@ -6,6 +6,7 @@ mod login;
 mod register;
 mod stream;
 mod public;
+mod about;
 
 pub fn route(path: &str) -> Router<AppState> {
     let inner = Router::new()
@@ -13,6 +14,7 @@ pub fn route(path: &str) -> Router<AppState> {
         .merge(stream::route("/share"))
         .merge(login::route("/login"))
         .merge(register::route("/register"))
+        .merge(about::route("/about"))
         .merge(public::route("/public"));
     
     if path == "/" {
