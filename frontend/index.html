@@ -80,7 +80,7 @@
         class="bg-white dark:bg-black shadow-sm dark:shadow-gray-800 sticky top-0 z-50 border-b border-gray-200 dark:border-gray-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <a href="/about" class="flex items-center">
+                <a href="/about" target="blank" class="flex items-center">
                     <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
                         <span class="hidden sm:inline">Stream Alone</span>
                         <span class="inline sm:hidden">SA</span>
@@ -136,18 +136,6 @@
                         <input type="text" id="search-rooms" placeholder="搜索房间名或创建者..."
                             aria-label="Search rooms by name or creator"
                             class="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                    <div class="relative">
-                        <select id="filter-status" aria-label="Filter rooms by status"
-                            class="appearance-none pl-4 pr-10 py-2 w-full sm:w-auto border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="all">所有状态</option>
-                            <option value="live">直播中</option>
-                            <option value="offline">离线</option>
-                        </select>
-                        <div
-                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700 dark:text-gray-300">
-                            <i class="fas fa-chevron-down text-xs"></i>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -485,16 +473,12 @@
                 if (!grid) return;
 
                 const searchInput = document.getElementById('search-rooms');
-                const statusFilterSelect = document.getElementById('filter-status');
-
                 const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : "";
-                const statusFilter = statusFilterSelect ? statusFilterSelect.value : "all";
 
                 let filteredRooms = AppState.allRooms.filter(room => {
                     const matchesSearch = room.name.toLowerCase().includes(searchTerm) ||
                         (room.creator && room.creator.toLowerCase().includes(searchTerm));
-                    const matchesStatus = statusFilter === 'all' || room.status === statusFilter;
-                    return matchesSearch && matchesStatus;
+                    return matchesSearch;
                 });
 
                 const startIndex = (AppState.allRoomsCurrentPage - 1) * AppState.allRoomsItemsPerPage;
@@ -509,7 +493,7 @@
 
                 if (paginatedRooms.length > 0) {
                     grid.innerHTML = paginatedRooms.map(room => this.createRoomCard(room)).join('');
-                } else if (AppState.allRooms.length === 0 && searchTerm === "" && statusFilter === "all") {
+                } else if (AppState.allRooms.length === 0 && searchTerm === "") {
                     grid.innerHTML = `<p class="col-span-full text-center text-gray-500 dark:text-gray-400 py-8">暂无直播房间。</p>`;
                 }
                 else {
@@ -582,46 +566,32 @@
 
             createRoomCard(room) {
                 const statusBadge = room.status === 'live'
-                    ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"><span class="w-2 h-2 bg-red-400 rounded-full mr-1 animate-pulse"></span>直播中</span>'
-                    : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">离线</span>';
-
-                let coverDisplayHTML;
-                if (room.status === 'live') {
-                    const liveCoverImageSrc = 'https://placehold.co/300x200/E5E7EB/6B7280?text=300x200';
-                    coverDisplayHTML = `<img src="${liveCoverImageSrc}" alt="${room.name}" class="w-full h-full object-cover">`;
-                } else {
-                    coverDisplayHTML = `
-                        <div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-800">
-                            <i class="fas fa-video-slash text-gray-500 dark:text-gray-400 text-5xl"></i>
-                        </div>
-                    `;
-                }
+                    ? '<span class="flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"><span class="w-2 h-2 bg-red-400 rounded-full mr-1.5 animate-pulse"></span>直播中</span>'
+                    : '<span class="flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">离线</span>';
 
                 const audienceDisplay = room.status === 'live' && typeof room.audienceCount === 'number'
-                    ? `<span class="text-xs text-gray-500 dark:text-gray-400"><i class="fas fa-eye mr-1"></i>${room.audienceCount}</span>`
+                    ? `<span class="text-sm text-gray-500 dark:text-gray-400"><i class="fas fa-eye mr-1"></i>${room.audienceCount}</span>`
                     : '';
 
                 return `
-                    <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md dark:hover:bg-dark-card-hover transition-shadow">
-                        <div class="aspect-video relative overflow-hidden">
-                            ${coverDisplayHTML}
-                            ${room.status === 'live' ? '<div class="absolute top-2 left-2"><span class="bg-red-600 text-white px-2 py-1 rounded text-xs font-medium">LIVE</span></div>' : ''}
-                        </div>
-                        <div class="p-4">
-                            <h3 class="font-semibold text-gray-900 dark:text-white mb-2 truncate" title="${room.name}">${room.name}</h3>
+                    <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col p-4 hover:shadow-md dark:hover:bg-dark-card-hover transition-shadow">
+                        <div class="flex-grow">
+                            <div class="flex justify-between items-start gap-2 mb-2">
+                                <h3 class="font-semibold text-gray-900 dark:text-white truncate" title="${room.name}">${room.name}</h3>
+                                ${statusBadge}
+                            </div>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                                <i class="fas fa-user-tie mr-1"></i>
+                                <i class="fas fa-user-tie fa-fw mr-1 text-gray-400"></i>
                                 ${room.creator || 'N/A'}
                             </p>
-                            <p class="text-sm text-gray-500 dark:text-gray-500 mb-3">
-                                <i class="fas fa-clock mr-1"></i>
+                            <p class="text-sm text-gray-500 dark:text-gray-500">
+                                <i class="fas fa-clock fa-fw mr-1 text-gray-400"></i>
                                 ${room.createTime}
                             </p>
-                            <div class="flex justify-between items-center">
-                                ${statusBadge}
-                                ${audienceDisplay}
-                            </div>
-                             ${room.status === 'live' ? `<button onclick="window.roomManager.joinLiveRoom('${room.id}')" class="mt-3 w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">进入房间</button>` : ''}
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <div>${audienceDisplay}</div>
+                            ${room.status === 'live' ? `<button onclick="window.roomManager.joinLiveRoom('${room.id}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg font-medium transition-colors">进入房间</button>` : `<div></div>`}
                         </div>
                     </div>
                 `;
@@ -932,14 +902,6 @@
                 const searchInput = document.getElementById('search-rooms');
                 if (searchInput) {
                     searchInput.addEventListener('input', () => {
-                        AppState.allRoomsCurrentPage = 1;
-                        this.renderAllRooms();
-                    });
-                }
-
-                const filterSelect = document.getElementById('filter-status');
-                if (filterSelect) {
-                    filterSelect.addEventListener('change', () => {
                         AppState.allRoomsCurrentPage = 1;
                         this.renderAllRooms();
                     });
