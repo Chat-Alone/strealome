@@ -19,3 +19,20 @@ impl UserModel {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserPub {
+    pub id: i32,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+}
+
+impl From<UserModel> for UserPub {
+    fn from(model: UserModel) -> Self {
+        Self {
+            id:         model.id,
+            name:       model.name,
+            created_at: model.created_at,
+        }
+    }
+}

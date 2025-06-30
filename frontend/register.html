@@ -448,7 +448,7 @@
                 $('#registerSpinner').removeClass('hidden');
                 $('#registerBtn').prop('disabled', true).addClass('opacity-75');
 
-                fetch('/user/register', {
+                fetch(`/user/register${window.location.search ?? ""}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -457,6 +457,9 @@
                 })
                     .then(response => {
                         if (!response.ok) throw new Error(`jb，飞了：${response.statusText}`);
+                        if (response.redirected) {
+                            window.location.href = response.url;
+                        }
                         return response;
                     })
                     .then(response => response.json())

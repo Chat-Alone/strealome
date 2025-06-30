@@ -7,7 +7,7 @@ use tokio::{sync::Mutex, time };
 use rusqlite::{Connection, Result as SqliteResult, Error as SqliteError, Row, params};
 
 use crate::REPO_CFG;
-use crate::model::UserModel;
+use crate::model::user::UserModel;
 
 use super::{RepoConfig, Repository, Error};
 use super::crud::CRUD;

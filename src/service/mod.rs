@@ -5,6 +5,6 @@ mod error;
 
 pub use error::Error;
 
-use crate::model::UserModel;
+use crate::model::user::UserModel;
 use crate::controller::Response;
 use crate::repository::{CRUD, Repository, UserRepo};

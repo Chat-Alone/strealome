@@ -1,4 +1,4 @@
-use crate::model::UserModel;
+use crate::model::user::UserModel;
 use crate::repository::crud::CRUD;
 use crate::repository::Error;
 

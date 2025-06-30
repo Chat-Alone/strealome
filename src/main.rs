@@ -2,13 +2,11 @@ mod controller;
 mod model;
 mod repository;
 mod service;
-mod signal;
 
 use std::sync::{Arc};
 use chrono::Duration;
 use tokio::task::JoinHandle;
-use repository::{ Repo, RepoConfig };
-use crate::repository::Repository;
+use repository::{ Repo, RepoConfig, Repository };
 
 
 static REPO_CFG: RepoConfig = RepoConfig {
@@ -33,8 +31,8 @@ async fn main() {
         "0.0.0.0:80",
         Arc::new(repo),
         "secret".to_string(),
-        Duration::minutes(30),
-        Duration::days(3),
+        Duration::minutes(300),
+        Duration::days(7),
     ).await;
     
     let mut ctrl_c_task = ctrl_c_task().await;

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use axum::{Json, Router, routing};
 use axum::extract::State;
-use crate::model::UserModel;
+use crate::model::user::UserModel;
 use super::{Jwt, AppState, Response};
 use crate::service::user;
 
