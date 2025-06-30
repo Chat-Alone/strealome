@@ -114,7 +114,7 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <section class="mb-12" aria-labelledby="all-rooms-heading">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-                <div class="flex items-center gap-4 mb-4 sm:mb-0">
+                <div class="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-0 flex-wrap">
                     <h2 id="all-rooms-heading" class="text-2xl font-bold text-gray-900 dark:text-white">
                         房间列表
                     </h2>
@@ -127,6 +127,11 @@
                         class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors text-sm">
                         <i class="fas fa-users mr-0 sm:mr-2"></i>
                         <span class="hidden sm:inline">加入房间</span>
+                    </button>
+                    <button id="create-room-btn"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-sm">
+                        <i class="fas fa-plus mr-0 sm:mr-2"></i>
+                        <span class="hidden sm:inline">创建房间</span>
                     </button>
                 </div>
 
@@ -145,71 +150,6 @@
             </div>
 
             <div id="all-rooms-pagination-controls" class="flex justify-center items-center space-x-2 mt-6">
-            </div>
-        </section>
-
-        <section aria-labelledby="my-rooms-heading">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-                <div class="flex items-center gap-4 mb-4 sm:mb-0">
-                    <h2 id="my-rooms-heading" class="text-2xl font-bold text-gray-900 dark:text-white">
-                        我创建的房间
-                    </h2>
-                    <button id="refresh-my-rooms-btn"
-                        class="px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors text-sm"
-                        title="刷新我的房间列表">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </div>
-
-                <button id="create-room-btn"
-                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-                    <i class="fas fa-plus mr-2"></i>
-                    创建新房间
-                </button>
-            </div>
-
-            <div
-                class="bg-white dark:bg-[#0A0A0A] rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="bg-gray-50 dark:bg-[#1A1A1A]">
-                            <tr>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                                    房间名</th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                                    创建时间</th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                                    状态</th>
-                                <th
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                                    操作</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white dark:bg-[#0A0A0A] divide-y divide-gray-200 dark:divide-gray-700"
-                            id="my-rooms-tbody">
-                            <tr>
-                                <td colspan="4" class="text-center py-12 text-gray-500 dark:text-gray-400">正在加载我创建的房间...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div id="empty-state" class="hidden text-center py-12">
-                    <i class="fas fa-home text-gray-400 text-4xl mb-4"></i>
-                    <p class="text-gray-500 dark:text-gray-400 mb-4">您还没有创建任何房间</p>
-                    <button
-                        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors create-room-trigger">
-                        <i class="fas fa-plus mr-2"></i>
-                        创建第一个房间
-                    </button>
-                </div>
-            </div>
-
-            <div id="my-rooms-pagination-controls" class="flex justify-center items-center space-x-2 mt-6">
             </div>
         </section>
     </main>
@@ -296,11 +236,8 @@
             theme: localStorage.getItem('theme') || 'light',
             currentUser: { internalId: null, name: 'Loading...' },
             allRooms: [],
-            myRooms: [],
             allRoomsCurrentPage: 1,
             allRoomsItemsPerPage: 8,
-            myRoomsCurrentPage: 1,
-            myRoomsItemsPerPage: 5,
         };
 
         async function fetchAPI(endpoint, options = {}) {
@@ -432,40 +369,21 @@
                         status: apiRoom.hosting ? 'live' : 'offline',
                         audienceCount: apiRoom.member_cnt
                     }));
-
-                    if (AppState.currentUser.name && AppState.currentUser.name !== 'Loading...' && AppState.currentUser.name !== 'Error') {
-                        AppState.myRooms = AppState.allRooms.filter(room => room.creator === AppState.currentUser.name);
-                    } else {
-                        AppState.myRooms = [];
-                        if (AppState.currentUser.name === 'Loading...') {
-                            console.warn("User profile still loading during room data processing. My Rooms list might be incomplete initially.");
-                        }
-                    }
                 } catch (error) {
                     AppState.allRooms = [];
-                    AppState.myRooms = [];
                     throw error;
                 }
             }
 
             async fetchInitialRoomData() {
                 document.getElementById('rooms-grid').innerHTML = `<p class="col-span-full text-center text-gray-500 dark:text-gray-400 py-8">正在加载房间列表...</p>`;
-                const myRoomsTbody = document.getElementById('my-rooms-tbody');
-                if (myRoomsTbody) {
-                    myRoomsTbody.innerHTML = `<tr><td colspan="4" class="text-center py-12 text-gray-500 dark:text-gray-400">正在加载我创建的房间...</td></tr>`;
-                }
 
                 try {
                     await this._fetchAndProcessRoomsFromServer();
                 } catch (error) {
                     document.getElementById('rooms-grid').innerHTML = `<p class="col-span-full text-center text-gray-500 dark:text-gray-400 py-8">加载房间列表失败。</p>`;
-                    if (myRoomsTbody) {
-                        myRoomsTbody.innerHTML = `<tr><td colspan="4" class="text-center py-12 text-gray-500 dark:text-gray-400">加载我创建的房间失败。</td></tr>`;
-                    }
                 }
-
                 this.renderAllRooms();
-                this.renderMyRooms();
             }
 
             renderAllRooms() {
@@ -602,118 +520,6 @@
                 window.location.href = `/share/${roomId}`;
             }
 
-
-            renderMyRooms() {
-                const tbody = document.getElementById('my-rooms-tbody');
-                const emptyState = document.getElementById('empty-state');
-
-                if (!tbody || !emptyState) return;
-
-                const currentUserRooms = AppState.myRooms;
-
-
-                if (currentUserRooms.length === 0) {
-                    tbody.innerHTML = '';
-                    emptyState.classList.remove('hidden');
-                } else {
-                    emptyState.classList.add('hidden');
-                    const startIndex = (AppState.myRoomsCurrentPage - 1) * AppState.myRoomsItemsPerPage;
-                    const endIndex = startIndex + AppState.myRoomsItemsPerPage;
-                    const paginatedMyRooms = currentUserRooms.slice(startIndex, endIndex);
-                    tbody.innerHTML = paginatedMyRooms.map(room => this.createMyRoomRow(room)).join('');
-                }
-                this.renderMyRoomsPagination(currentUserRooms.length);
-            }
-
-            renderMyRoomsPagination(totalItems) {
-                const container = document.getElementById('my-rooms-pagination-controls');
-                if (!container) return;
-
-                const currentPage = AppState.myRoomsCurrentPage;
-                const itemsPerPage = AppState.myRoomsItemsPerPage;
-                const totalPages = Math.ceil(totalItems / itemsPerPage);
-
-                if (totalPages <= 1) {
-                    container.innerHTML = '';
-                    return;
-                }
-
-                let paginationHTML = '';
-                paginationHTML += `
-                    <button
-                        onclick="window.roomManager.changeMyRoomsPage(${currentPage - 1})"
-                        class="pagination-button px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}"
-                        ${currentPage === 1 ? 'disabled' : ''}
-                        aria-label="Previous page for my rooms"
-                    >
-                        <i class="fas fa-chevron-left mr-1 sm:mr-2"></i>
-                        <span class="hidden sm:inline">上一页</span>
-                    </button>
-                `;
-
-                for (let i = 1; i <= totalPages; i++) {
-                    if (i === currentPage) {
-                        paginationHTML += `<span class="pagination-button px-4 py-2 bg-blue-600 text-white rounded-lg font-medium" aria-current="page">${i}</span>`;
-                    } else {
-                        paginationHTML += `
-                            <button
-                                onclick="window.roomManager.changeMyRoomsPage(${i})"
-                                class="pagination-button px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
-                                aria-label="Go to page ${i} of my rooms"
-                            >
-                                ${i}
-                            </button>
-                        `;
-                    }
-                }
-
-                paginationHTML += `
-                    <button
-                        onclick="window.roomManager.changeMyRoomsPage(${currentPage + 1})"
-                        class="pagination-button px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}"
-                        ${currentPage === totalPages ? 'disabled' : ''}
-                        aria-label="Next page for my rooms"
-                    >
-                        <span class="hidden sm:inline">下一页</span>
-                        <i class="fas fa-chevron-right ml-1 sm:ml-2"></i>
-                    </button>
-                `;
-                container.innerHTML = paginationHTML;
-            }
-
-            changeMyRoomsPage(newPage) {
-                AppState.myRoomsCurrentPage = newPage;
-                this.renderMyRooms();
-            }
-
-            createMyRoomRow(room) {
-                const statusBadge = room.status === 'live'
-                    ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"><span class="w-2 h-2 bg-red-400 rounded-full mr-1 animate-pulse"></span>直播中</span>'
-                    : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">离线</span>';
-
-                return `
-                    <tr class="hover:bg-gray-50 dark:hover:bg-[#1A1A1A]">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900 dark:text-white truncate max-w-xs" title="${room.name}">${room.name}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-500 dark:text-gray-400">${room.createTime}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            ${statusBadge}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div class="flex space-x-2 flex-wrap gap-2">
-                                <button onclick="window.roomManager.copyShareLink('${room.id}', this)" class="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300" title="Copy share link">
-                                    <i class="fas fa-share-alt mr-1"></i>
-                                    分享链接
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }
-
             async createRoom(roomName) {
                 if (!roomName.trim()) {
                     this.showNotification('请输入房间名称', 'error');
@@ -768,38 +574,6 @@
                 }
             }
 
-            async refreshMyRooms() {
-                const refreshBtn = document.getElementById('refresh-my-rooms-btn');
-                const refreshIcon = refreshBtn?.querySelector('i');
-
-                if (refreshBtn) {
-                    refreshBtn.disabled = true;
-                    refreshBtn.classList.add('opacity-70');
-                }
-                if (refreshIcon) {
-                    refreshIcon.classList.add('fa-spin');
-                }
-
-                try {
-                    await this._fetchAndProcessRoomsFromServer();
-                    AppState.myRoomsCurrentPage = 1;
-                    this.renderMyRooms();
-                    this.showNotification('我的房间列表已刷新', 'success');
-                } catch (error) {
-                    this.showNotification('刷新我的房间列表失败，请稍后再试', 'error');
-                    console.error('Error refreshing my rooms:', error);
-                } finally {
-                    if (refreshBtn) {
-                        refreshBtn.disabled = false;
-                        refreshBtn.classList.remove('opacity-70');
-                    }
-                    if (refreshIcon) {
-                        refreshIcon.classList.remove('fa-spin');
-                    }
-                }
-            }
-
-
             joinRoomByCode(shareCode) {
                 if (!shareCode.trim()) {
                     this.showNotification('请输入分享代码', 'error');
@@ -807,58 +581,6 @@
                 }
                 this.showNotification(`通过代码加入房间 ${shareCode.trim()}...`, 'info');
                 window.location.href = `/share/${shareCode.trim()}`;
-            }
-
-
-            copyShareLink(roomId, buttonElement) {
-                const shareLink = `${window.location.origin}/share/${roomId}`;
-                const originalButtonHTML = buttonElement.innerHTML;
-                const copiedHTML = `<i class="fas fa-check mr-1"></i>已复制`;
-
-                const showCopiedFeedback = () => {
-                    buttonElement.innerHTML = copiedHTML;
-                    buttonElement.disabled = true;
-                    setTimeout(() => {
-                        buttonElement.innerHTML = originalButtonHTML;
-                        buttonElement.disabled = false;
-                    }, 2000);
-                };
-
-                if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(shareLink).then(() => {
-                        this.showNotification('链接已复制到剪贴板', 'success');
-                        showCopiedFeedback();
-                    }).catch((err) => {
-                        this.fallbackCopyToClipboard(shareLink, showCopiedFeedback);
-                    });
-                } else {
-                    this.fallbackCopyToClipboard(shareLink, showCopiedFeedback);
-                }
-            }
-
-            fallbackCopyToClipboard(text, successCallback) {
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                textArea.style.position = 'fixed';
-                textArea.style.left = '-999999px';
-                textArea.style.top = '-999999px';
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-
-                try {
-                    const successful = document.execCommand('copy');
-                    if (successful) {
-                        this.showNotification('链接已复制到剪贴板 (fallback)', 'success');
-                        if (successCallback) successCallback();
-                    } else {
-                        this.showNotification('复制失败，请手动复制链接', 'error');
-                    }
-                } catch (err) {
-                    this.showNotification('复制失败，请手动复制链接', 'error');
-                }
-
-                document.body.removeChild(textArea);
             }
 
             showNotification(message, type = 'info') {
@@ -911,13 +633,6 @@
                 if (refreshRoomsBtn) {
                     refreshRoomsBtn.addEventListener('click', () => {
                         this.refreshRoomsList();
-                    });
-                }
-
-                const refreshMyRoomsBtn = document.getElementById('refresh-my-rooms-btn');
-                if (refreshMyRoomsBtn) {
-                    refreshMyRoomsBtn.addEventListener('click', () => {
-                        this.refreshMyRooms();
                     });
                 }
 
@@ -1059,10 +774,6 @@
                         }
                     });
                 }
-
-                document.querySelectorAll('.create-room-trigger').forEach(trigger => {
-                    trigger.addEventListener('click', openModalAction);
-                });
             }
         }
 
