@@ -27,6 +27,14 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        @font-face {
+            font-family: 'Twemoji';
+            src: url('/public/Twemoji.Mozilla.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+        }
+
         :root {
             --primary-bg: #ffffff;
             --secondary-bg: #f9fafb;
@@ -58,7 +66,7 @@
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', 'Twemoji', sans-serif;
             background-color: var(--primary-bg);
             color: var(--text-primary);
             transition: all 0.2s ease;
@@ -69,13 +77,13 @@
         }
 
         .font-geist-mono {
-            font-family: 'Space Mono', monospace;
+            font-family: 'Space Mono', 'Twemoji', monospace;
         }
 
         .emoji-only {
-            font-size: 2rem;
+            font-size: 3rem;
             display: inline-block;
-            padding: 0.25rem;
+            padding: 0.4rem;
             line-height: 1;
         }
 
