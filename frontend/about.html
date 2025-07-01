@@ -269,7 +269,6 @@
         $(document).ready(function () {
             const themeToggle = $('#themeToggle');
             const themeIcon = $('#themeIcon');
-            const body = $('body');
             let themeClickCount = 0;
             let lastThemeClickTime = 0;
             let isMatrixMode = false;
@@ -277,11 +276,11 @@
             function setTheme(theme, force = false) {
                 if (isMatrixMode && !force) return;
                 if (theme === 'dark') {
-                    body.addClass('dark');
+                    $('html').addClass('dark');
                     themeIcon.removeClass('fa-moon').addClass('fa-sun');
                     localStorage.setItem('theme', 'dark');
                 } else {
-                    body.removeClass('dark');
+                    $('html').removeClass('dark');
                     themeIcon.removeClass('fa-sun').addClass('fa-moon');
                     localStorage.setItem('theme', 'light');
                 }
@@ -298,7 +297,7 @@
 
             function enterMatrixMode() {
                 isMatrixMode = true;
-                body.addClass('matrix-mode');
+                $('html').addClass('matrix-mode');
                 themeIcon.removeClass('fa-moon fa-sun').addClass('fa-user-secret');
                 $('#particle-canvas').hide();
                 $('#matrix-canvas').show();
@@ -309,7 +308,7 @@
 
             function exitMatrixMode() {
                 isMatrixMode = false;
-                body.removeClass('matrix-mode');
+                $('html').removeClass('matrix-mode');
                 $('#matrix-canvas').hide();
                 $('#particle-canvas').show();
                 if (window.stopMatrixAnimation) {
@@ -327,7 +326,7 @@
                     return;
                 }
 
-                setTheme(body.hasClass('dark') ? 'light' : 'dark');
+                setTheme($('html').hasClass('dark') ? 'light' : 'dark');
 
                 const now = Date.now();
                 if (now - lastThemeClickTime < 400) {
@@ -552,7 +551,7 @@
 
             aloneWord.on('mouseenter', function () {
                 const wordRect = aloneWord[0].getBoundingClientRect();
-                const tooltipText = isMatrixMode ? '👽' : '但你在这里并不孤单，感谢来访！❤️';
+                const tooltipText = $('html').hasClass('matrix-mode') ? '👽' : '但你在这里并不孤单，感谢来访！❤️';
 
                 aloneTooltip.text(tooltipText).css({
                     top: wordRect.bottom + 10 + $(window).scrollTop(),
