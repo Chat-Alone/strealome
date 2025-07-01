@@ -50,6 +50,7 @@
             color: var(--text-primary);
             transition: background-color 0.3s ease, color 0.3s ease;
             position: relative;
+            overflow: hidden;
         }
 
         #particle-canvas {
@@ -272,6 +273,149 @@
             let themeClickCount = 0;
             let lastThemeClickTime = 0;
             let isMatrixMode = false;
+            let isExplodedMode = false;
+            let cardFragments = [];
+            let fragmentAnimationId;
+            let evasiveButtonAnimationId;
+
+            function startExplosion() {
+                isExplodedMode = true;
+                const cards = $('.section-card');
+                cards.css('opacity', 0);
+                const fragmentColor = getComputedStyle(document.documentElement).getPropertyValue('--secondary-bg').trim();
+                const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border-color').trim();
+
+                cards.each(function () {
+                    const card = $(this);
+                    const rect = card[0].getBoundingClientRect();
+                    const fragmentCount = 40;
+                    for (let i = 0; i < fragmentCount; i++) {
+                        const size = Math.random() * 15 + 5;
+                        const fragment = $('<div/>').css({
+                            position: 'fixed',
+                            width: size + 'px',
+                            height: size + 'px',
+                            backgroundColor: fragmentColor,
+                            border: `1px solid ${borderColor}`,
+                            left: rect.left + Math.random() * rect.width - size / 2,
+                            top: rect.top + Math.random() * rect.height - size / 2,
+                            zIndex: 20
+                        }).appendTo('body');
+
+                        cardFragments.push({
+                            el: fragment,
+                            x: parseFloat(fragment.css('left')),
+                            y: parseFloat(fragment.css('top')),
+                            vx: (Math.random() - 0.5) * 18,
+                            vy: (Math.random() - 0.5) * 18,
+                            rot: 0,
+                            vrot: (Math.random() - 0.5) * 20
+                        });
+                    }
+                });
+
+                animateFragments();
+                startEvasiveButton();
+            }
+
+            function animateFragments() {
+                const gravity = 0.2;
+                const damping = 0.98;
+
+                cardFragments.forEach(p => {
+                    p.vy += gravity;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.rot += p.vrot;
+
+                    const pWidth = p.el.width();
+                    const pHeight = p.el.height();
+
+                    if (p.x < 0) { p.x = 0; p.vx *= -1 * damping; p.vrot *= damping; }
+                    if (p.x > window.innerWidth - pWidth) { p.x = window.innerWidth - pWidth; p.vx *= -1 * damping; p.vrot *= damping; }
+                    if (p.y < 0) { p.y = 0; p.vy *= -1 * damping; p.vrot *= damping; }
+                    if (p.y > window.innerHeight - pHeight) { p.y = window.innerHeight - pHeight; p.vy *= -1 * damping; p.vrot *= damping; }
+
+                    p.el.css({
+                        left: p.x + 'px',
+                        top: p.y + 'px',
+                        transform: `rotate(${p.rot}deg)`
+                    });
+                });
+
+                fragmentAnimationId = requestAnimationFrame(animateFragments);
+            }
+
+            function startEvasiveButton() {
+                const buttonWidth = themeToggle.width();
+                const buttonHeight = themeToggle.height();
+                const centerX = window.innerWidth / 2 - buttonWidth / 2;
+                const centerY = window.innerHeight / 2 - buttonHeight / 2;
+
+                themeToggle.css({
+                    transition: 'none',
+                    right: 'auto',
+                    left: centerX + 'px',
+                    top: centerY + 'px'
+                });
+                moveEvasiveButton();
+            }
+
+            function moveEvasiveButton() {
+                if (!isExplodedMode) return;
+                const buttonRect = themeToggle[0].getBoundingClientRect();
+                const buttonCenterX = buttonRect.left + buttonRect.width / 2;
+                const buttonCenterY = buttonRect.top + buttonRect.height / 2;
+
+                if (mouse.x !== null && mouse.y !== null) {
+                    const dx = buttonCenterX - mouse.x;
+                    const dy = buttonCenterY - mouse.y;
+                    const distance = Math.hypot(dx, dy);
+                    const escapeDistance = 200;
+
+                    if (distance < escapeDistance) {
+                        const maxSpeed = 25;
+                        const speed = maxSpeed * Math.pow(1 - distance / escapeDistance, 2);
+
+                        const dirX = distance > 0 ? dx / distance : 1;
+                        const dirY = distance > 0 ? dy / distance : 0;
+
+                        let newX = buttonRect.left + dirX * speed;
+                        let newY = buttonRect.top + dirY * speed;
+
+                        const margin = 5;
+                        newX = Math.max(margin, Math.min(newX, window.innerWidth - buttonRect.width - margin));
+                        newY = Math.max(margin, Math.min(newY, window.innerHeight - buttonRect.height - margin));
+
+                        themeToggle.css({ left: newX + 'px', top: newY + 'px' });
+                    }
+                }
+                evasiveButtonAnimationId = requestAnimationFrame(moveEvasiveButton);
+            }
+
+            function stopEvasiveButton() {
+                if (evasiveButtonAnimationId) {
+                    cancelAnimationFrame(evasiveButtonAnimationId);
+                    evasiveButtonAnimationId = null;
+                }
+                themeToggle.attr('style', '').addClass('theme-toggle');
+            }
+
+            function resetExplosion() {
+                isExplodedMode = false;
+                if (fragmentAnimationId) cancelAnimationFrame(fragmentAnimationId);
+                fragmentAnimationId = null;
+
+                cardFragments.forEach(p => p.el.remove());
+                cardFragments = [];
+
+                $('.section-card').css('opacity', 1);
+                stopEvasiveButton();
+                if (isMatrixMode && !matrixAnimationId) {
+                    startMatrixAnimation();
+                }
+            }
+
 
             function setTheme(theme, force = false) {
                 if (isMatrixMode && !force) return;
@@ -321,6 +465,11 @@
             }
 
             themeToggle.on('click', function () {
+                if (isExplodedMode) {
+                    resetExplosion();
+                    return;
+                }
+
                 if (isMatrixMode) {
                     exitMatrixMode();
                     return;
@@ -468,7 +617,7 @@
             function animateMatrix() {
                 if (!isMatrixMode) return;
 
-                matrixCtx.fillStyle = '#0c0c0c';
+                matrixCtx.fillStyle = 'rgba(12, 12, 12, 0.1)';
                 matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
                 matrixCtx.font = fontSize + 'px Space Mono';
 
@@ -495,7 +644,7 @@
                         }
                     }
 
-                    stream.y += stream.speed / 20;
+                    stream.y += stream.speed / 10;
 
                     if (stream.y - stream.length > rows) {
                         stream.y = Math.random() * -rows;
@@ -520,6 +669,8 @@
             window.startMatrixAnimation = function () {
                 if (matrixAnimationId) cancelAnimationFrame(matrixAnimationId);
                 resizeCanvas();
+                matrixCtx.fillStyle = '#0c0c0c';
+                matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
                 matrixAnimationId = requestAnimationFrame(animateMatrix);
             }
 
@@ -533,6 +684,10 @@
             window.startParticleAnimation();
             window.addEventListener('resize', function () {
                 resizeCanvas();
+                if (isExplodedMode) {
+                    resetExplosion();
+                    exitMatrixMode();
+                }
                 if (isMatrixMode) {
                     if (matrixAnimationId) cancelAnimationFrame(matrixAnimationId);
                     matrixAnimationId = requestAnimationFrame(animateMatrix);
@@ -565,8 +720,17 @@
                 aloneTooltip.removeClass('visible');
             });
 
+            aloneWord.on('click', function () {
+                if (isMatrixMode && !isExplodedMode) {
+                    startExplosion();
+                }
+            });
+
             $(document).on('keydown', function (e) {
                 if (e.key === 'Escape') {
+                    if (isExplodedMode) {
+                        resetExplosion();
+                    }
                     if (isMatrixMode) {
                         exitMatrixMode();
                     }
