@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Alone - 404 Not Found</title>
+
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        (function () {
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                        'space-mono': ['Space Mono', 'monospace']
+                    },
+                    colors: {
+                        'dark-card': '#0A0A0A',
+                        'dark-card-hover': '#1A1A1A',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .dark body {
+            background-color: #000000;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f0f0f0;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c0c0c0;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a0a0a0;
+        }
+
+        .dark ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #404040;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #606060;
+        }
+    </style>
+</head>
+
+<body
+    class="h-full bg-gray-50 dark:bg-black text-gray-900 dark:text-white font-inter flex flex-col items-center justify-center p-6 relative">
+
+    <button id="theme-toggle" aria-label="Toggle theme"
+        class="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">
+        <i class="fas fa-sun text-yellow-500 dark:hidden"></i>
+        <i class="fas fa-moon text-blue-400 hidden dark:inline"></i>
+    </button>
+
+    <main class="text-center">
+        <h1 class="text-7xl sm:text-9xl font-bold font-space-mono text-blue-600 dark:text-blue-400">
+            404
+        </h1>
+        <p class="mt-4 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+            页面未找到
+        </p>
+        <p class="mt-3 text-base text-gray-600 dark:text-gray-400">
+            抱歉，我们无法找到您要访问的页面。
+        </p>
+        <div class="mt-10 flex items-center justify-center">
+            <a href="/"
+                class="inline-flex items-center justify-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-base shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-black">
+                <i class="fas fa-arrow-left mr-2"></i>
+                返回主页
+            </a>
+        </div>
+    </main>
+
+    <script>
+        const AppState = {
+            theme: localStorage.getItem('theme') || 'light'
+        };
+
+        class ThemeManager {
+            constructor() {
+                this.init();
+            }
+
+            init() {
+                this.applyTheme(AppState.theme);
+                this.bindEvents();
+            }
+
+            applyTheme(theme) {
+                const html = document.documentElement;
+                if (theme === 'dark') {
+                    html.classList.add('dark');
+                } else {
+                    html.classList.remove('dark');
+                }
+                AppState.theme = theme;
+                localStorage.setItem('theme', theme);
+            }
+
+            toggleTheme() {
+                const newTheme = AppState.theme === 'light' ? 'dark' : 'light';
+                this.applyTheme(newTheme);
+            }
+
+            bindEvents() {
+                const themeToggleBtn = document.getElementById('theme-toggle');
+                if (themeToggleBtn) {
+                    themeToggleBtn.addEventListener('click', () => {
+                        this.toggleTheme();
+                    });
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.themeManager = new ThemeManager();
+        });
+    </script>
+</body>
+
+</html>
