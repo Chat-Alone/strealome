@@ -35,6 +35,10 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" rel="stylesheet">
+
     <style>
         @font-face {
             font-family: 'Twemoji';
@@ -75,7 +79,7 @@
         }
 
         body {
-            font-family: 'Inter', 'Twemoji', sans-serif;
+            font-family: 'Inter', var(--emoji-font, "Noto Color Emoji", "Twemoji"), sans-serif;
             background-color: var(--primary-bg);
             color: var(--text-primary);
             transition: all 0.2s ease;
@@ -86,7 +90,7 @@
         }
 
         .font-geist-mono {
-            font-family: 'Space Mono', 'Twemoji', monospace;
+            font-family: 'Space Mono', var(--emoji-font, "Noto Color Emoji", "Twemoji"), monospace;
         }
 
         .emoji-only {
@@ -777,8 +781,31 @@
                 <i class="fas fa-info-circle text-[var(--icon-color)]" aria-hidden="true"></i><span>教程</span>
             </button>
 
+            <div id="emojiSelectorContainer" class="relative">
+                <button id="emojiSelectorBtn" tabindex="0" aria-label="选择Emoji样式" aria-haspopup="true"
+                    aria-expanded="false"
+                    class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0">
+                    <i class="far fa-smile text-[var(--icon-color)]"></i>
+                </button>
+                <div id="emojiSelectorDropdown"
+                    class="hidden absolute right-0 mt-2 w-40 bg-[var(--primary-bg)] border border-[var(--border-color)] rounded-md shadow-lg z-10 origin-top-right ring-1 ring-black ring-opacity-5 focus:outline-none"
+                    role="menu" aria-orientation="vertical" aria-labelledby="emojiSelectorBtn">
+                    <div class="py-1" role="none">
+                        <a href="#"
+                            class="emoji-option block px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+                            role="menuitem" data-style="system">系统默认</a>
+                        <a href="#"
+                            class="emoji-option block px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+                            role="menuitem" data-style="twemoji">Twemoji</a>
+                        <a href="#"
+                            class="emoji-option block px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)]"
+                            role="menuitem" data-style="noto">Noto Color Emoji</a>
+                    </div>
+                </div>
+            </div>
+
             <button id="themeToggle" tabindex="0" aria-label="切换主题"
-                class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0 ml-1">
+                class="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full bg-[var(--secondary-bg)] hover:bg-[var(--hover-bg)] transition-colors flex-shrink-0">
                 <i id="themeIcon" class="fas fa-moon text-[var(--icon-color)]" aria-hidden="true"></i>
             </button>
         </div>
@@ -847,6 +874,8 @@
                 <button id="chatTab" tabindex="0" aria-label="切换到聊天选项卡" aria-selected="true" role="tab"
                     class="tab-active flex-1 py-3 text-center font-medium">
                     <i class="fas fa-comment-alt mr-1" aria-hidden="true"></i>聊天
+                    <span id="chatBadge"
+                        class="hidden ml-1 inline-flex items-center justify-center rounded-full bg-red-600 text-white text-xs w-5 h-5">0</span>
                 </button>
                 <button id="viewersTab" tabindex="0" aria-label="切换到在线用户选项卡" aria-selected="false" role="tab"
                     class="flex-1 py-3 text-center font-medium text-[var(--text-secondary)]">
@@ -1128,6 +1157,23 @@
             return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
+        let unreadCount = 0;
+        function updateChatBadge() {
+            const badge = $('#chatBadge');
+            if (unreadCount > 0) {
+                badge.text(unreadCount > 99 ? '99+' : unreadCount).removeClass('hidden');
+            } else {
+                badge.addClass('hidden');
+            }
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                unreadCount = 0;
+                updateChatBadge();
+            }
+        });
+
         $(document).ready(function () {
             let ws = null;
             let currentRoomId = null;
@@ -1146,6 +1192,65 @@
             const tutorialModalPanel = $('#tutorialModalPanel');
             const tutorialBtn = $('#tutorialBtn');
             const closeTutorialModalBtn = $('#closeTutorialModal');
+
+            const emojiSelectorBtn = $('#emojiSelectorBtn');
+            const emojiSelectorDropdown = $('#emojiSelectorDropdown');
+            const emojiSelectorContainer = $('#emojiSelectorContainer');
+            const FONT_STACKS = {
+                system: 'apple color emoji, segoe ui emoji, segoe ui symbol, noto color emoji',
+                twemoji: '"Twemoji"',
+                noto: '"Noto Color Emoji"'
+            };
+
+            function notifyNewIncomingMessage(senderId) {
+                //if (senderId === currentLoggedInUserId) return;
+                const chatHidden = $('#chatContainer').css('display') === 'none';
+                if (chatHidden) {
+                    unreadCount++;
+                    updateChatBadge();
+                }
+            }
+
+            function setEmojiStyle(style) {
+                if (FONT_STACKS[style]) {
+                    document.documentElement.style.setProperty('--emoji-font', FONT_STACKS[style]);
+                    localStorage.setItem('emojiStyle', style);
+                    emojiSelectorDropdown.find('.emoji-option').removeClass('font-bold text-[var(--accent-color)]');
+                    emojiSelectorDropdown.find(`.emoji-option[data-style="${style}"]`).addClass('font-bold text-[var(--accent-color)]');
+                }
+            }
+
+            const savedStyle = localStorage.getItem('emojiStyle') || 'noto';
+            setEmojiStyle(savedStyle);
+
+            emojiSelectorBtn.on('click', (e) => {
+                e.stopPropagation();
+                const isExpanded = emojiSelectorBtn.attr('aria-expanded') === 'true';
+                emojiSelectorDropdown.toggleClass('hidden');
+                emojiSelectorBtn.attr('aria-expanded', !isExpanded);
+            });
+
+            $('.emoji-option').on('click', function (e) {
+                e.preventDefault();
+                const style = $(this).data('style');
+                setEmojiStyle(style);
+                emojiSelectorDropdown.addClass('hidden');
+                emojiSelectorBtn.attr('aria-expanded', 'false');
+            });
+
+            $(document).on('click', (e) => {
+                if (!emojiSelectorContainer.is(e.target) && emojiSelectorContainer.has(e.target).length === 0) {
+                    emojiSelectorDropdown.addClass('hidden');
+                    emojiSelectorBtn.attr('aria-expanded', 'false');
+                }
+            });
+
+            $(document).on('keydown', (e) => {
+                if (e.key === 'Escape' && !emojiSelectorDropdown.hasClass('hidden')) {
+                    emojiSelectorDropdown.addClass('hidden');
+                    emojiSelectorBtn.attr('aria-expanded', 'false').focus();
+                }
+            });
 
             function getRoomIdForTutorial() {
                 const pathParts = window.location.pathname.split('/');
@@ -1387,6 +1492,7 @@
                                             eventData.created_at,
                                             authorIsHost
                                         );
+                                        notifyNewIncomingMessage(eventData.author_id);
                                     } else {
                                         console.warn('无效的聊天消息格式:', eventData);
                                     }
@@ -1616,6 +1722,8 @@
                 $('#viewersTab').removeClass('tab-active').addClass('text-[var(--text-secondary)]').attr('aria-selected', 'false');
                 $('#chatContainer').show();
                 $('#viewersContainer').hide();
+                unreadCount = 0;
+                updateChatBadge();
             });
 
             $('#viewersTab').on('click', function () {
