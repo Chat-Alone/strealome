@@ -6,14 +6,6 @@ use crate::service::user;
 use crate::unwrap;
 use super::{Error, AppState, Jwt};
 
-use axum::{Router, routing};
-use axum::extract::{Path, State};
-use axum::response::{Html, IntoResponse, Redirect, Response as AxumResponse};
-use tokio::fs::read_to_string;
-use crate::service::user;
-use crate::unwrap;
-use super::{Error, AppState, Jwt};
-
 async fn get(
     jwt: Option<Jwt>, Path(room_id): Path<String>,
     State(state): State<AppState>
