@@ -6,19 +6,34 @@ use crate::service::user;
 use crate::unwrap;
 use super::{Error, AppState, Jwt};
 
+use axum::{Router, routing};
+use axum::extract::{Path, State};
+use axum::response::{Html, IntoResponse, Redirect, Response as AxumResponse};
+use tokio::fs::read_to_string;
+use crate::service::user;
+use crate::unwrap;
+use super::{Error, AppState, Jwt};
+
 async fn get(
-    jwt: Option<Jwt>, Path(path): Path<String>,
+    jwt: Option<Jwt>, Path(room_id): Path<String>,
     State(state): State<AppState>
 ) -> AxumResponse {
     if jwt.is_none() {
-        return Redirect::to(&format!("/login?redirect=/share/{path}")).into_response()
+        return Redirect::to(&format!("/login?redirect=/share/{room_id}")).into_response()
     }
     let jwt = jwt.unwrap();
     let user = user::get_user_by_id(state.repository, jwt.sub).await;
     if user.is_err() {
-        return Redirect::to(&format!("/login?redirect=/share/{path}")).into_response()
+        return Redirect::to(&format!("/login?redirect=/share/{room_id}")).into_response()
     }
     let user = user.unwrap();
+
+    // 检查房间是否存在
+    let room = state.rooms.get_room_by_link(&room_id);
+    if room.is_err() {
+        return Redirect::to("/room-not-found").into_response()
+    }
+    
     let str = unwrap!(read_to_string("frontend/stream.html").await);
     let str = str.replace("{{USERNAME}}", &user.name);
     Html(str).into_response()
