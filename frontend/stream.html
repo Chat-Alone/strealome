@@ -761,6 +761,8 @@
                 class="ml-2 bg-red-600 text-white px-1.5 py-0.5 rounded text-xs font-bold flex items-center whitespace-nowrap hidden sm:flex">
                 <span class="w-2 h-2 bg-white rounded-full inline-block animate-pulse mr-1"></span>LIVE
             </span>
+            <span id="roomName"
+                class="ml-2 text-sm text-[var(--text-secondary)] font-normal truncate max-w-[120px] sm:max-w-[200px]"></span>
         </div>
 
         <div class="flex items-center gap-1 sm:gap-4">
@@ -1395,6 +1397,9 @@
 
                     if (data.success && data.payload && data.payload.host_id !== undefined) {
                         hostUserId = data.payload.host_id;
+                        if (data.payload.name) {
+                            $('#roomName').text(data.payload.name);
+                        }
                         console.log('获取房间详情成功，主播ID:', hostUserId);
                         return true;
                     } else {
