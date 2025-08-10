@@ -401,10 +401,6 @@
                     })
                     .then(data => {
                         if (data.success) {
-                            const token = data.payload?.token;
-                            if (!token) { throw new Error("我token呢🤔"); }
-                            window.localStorage.setItem('authToken', token);
-
                             $('#successMessage').text('登录成功！即将跳转...');
                             showToast('#successToast');
 

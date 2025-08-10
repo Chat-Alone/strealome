@@ -46,22 +46,28 @@ async fn post(
             let duration = if remember { state.jwt_exp_dur_long } else { state.jwt_exp_duration };
             let jwt = Jwt::http(user.id, duration);
             let token = jwt.encode(&state.jwt_secret).unwrap_or("wtf?".to_string());
-            let post_res = PostResponse { token };
-            let mut res = if let Some(redirect) = redirect {
-                Redirect::to(&redirect).into_response()
-            } else {
-                Response::success(Some(serde_json::to_value(&post_res).unwrap())).into_response()
-            };
-            
-            if state.jwt_auth_method.is_cookie() {
+            let res = if state.jwt_auth_method.is_cookie() {
                 let cookie = format!(
                     "token={}; Max-Age={}; Path=/; HttpOnly; SameSite=Strict",
-                    &post_res.token, duration.num_seconds()
+                    &token, duration.num_seconds()
                 );
+                let mut res = if let Some(redirect) = redirect {
+                    Redirect::to(&redirect).into_response()
+                } else {
+                    Response::success::<()>(None).into_response()
+                };
                 res.headers_mut()
                     .insert(SET_COOKIE, HeaderValue::from_str(&cookie).unwrap());
-            }
-
+                res
+            } else {
+                let post_res = PostResponse { token };
+                if let Some(redirect) = redirect {
+                    Redirect::to(&redirect).into_response()
+                } else {
+                    Response::success(Some(serde_json::to_value(&post_res).unwrap())).into_response()
+                }
+            };
+            
             println!("{:?}", res);
 
             res

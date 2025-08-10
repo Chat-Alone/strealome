@@ -10,7 +10,7 @@ pub async fn post(State(state): State<AppState>) -> AxumResponse {
         let mut res = Response::success::<()>(None).into_response();
         res.headers_mut()
             .insert(SET_COOKIE, HeaderValue::from_str(
-                "token=nothing; Max-Age={}; Path=/; HttpOnly; Secure; SameSite=Strict"
+                "token=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Strict"
             ).unwrap());
         return res
     }
