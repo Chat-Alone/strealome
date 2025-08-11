@@ -1,19 +1,9 @@
-use axum::{
-    extract::{Path, State},
-    Json,
-};
-use serde::Deserialize;
+use axum::{extract::{Path, State}, Json, http::StatusCode};
 
-use crate::{
-    controller::{
-        error::Error,
-        jwt::{Jwt, Role},
-        Response,
-    },
-    service,
-};
+use crate::{controller::{jwt::Jwt, Response, error::Error}, service};
 
 use super::AppState;
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateRoomNameReq {
@@ -21,15 +11,13 @@ pub struct UpdateRoomNameReq {
 }
 
 pub async fn update_room_name(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     jwt: Jwt,
     Path(room_id): Path<String>,
     Json(payload): Json<UpdateRoomNameReq>,
 ) -> Result<Json<Response>, Error> {
-    jwt.check_role(Role::User)?;
-
     let room = service::room::get_room_by_link(&room_id)?;
-    if room.host_id() != jwt.user_id {
+    if room.host_id() != jwt.sub {
         return Err(Error::Forbidden("Only the host can change the room name"));
     }
 
