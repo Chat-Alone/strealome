@@ -19,9 +19,9 @@ pub struct UpdateRoomNameReq {
 
 pub async fn update_room_name(
     jwt: Jwt,
+    State(state): State<AppState>,
     Path(room_id): Path<String>,
     Json(payload): Json<UpdateRoomNameReq>,
-    State(state): State<AppState>,
 ) -> Response {
     let room = match state.rooms.get_room_by_link(&room_id) {
         Ok(room) => room,
