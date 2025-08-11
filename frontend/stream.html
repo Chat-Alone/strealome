@@ -1403,13 +1403,7 @@
                         }
                         console.log('获取房间详情成功，主播ID:', hostUserId);
 
-                        // 如果当前用户是房主，则启用房间名修改功能
-                        if (currentLoggedInUserId && currentLoggedInUserId === hostUserId) {
-                            setupRoomNameEditing();
-                        } else {
-                            // 非房主用户，添加只读提示
-                            $('#roomNameContainer').attr('title', data.payload.name || '房间名称');
-                        }
+                        $('#roomNameContainer').attr('title', data.payload.name || '房间名称');
                         return true;
                     } else {
                         console.error('获取房间详情失败:', data);
@@ -1444,6 +1438,14 @@
                         console.warn('无法获取房间详情，主播ID可能为null。');
                     }
                     await fetchViewersList();
+                    
+                    if (currentLoggedInUserId && hostUserId && currentLoggedInUserId === hostUserId) {
+                        console.log('设置房间名称编辑功能 - 当前用户ID:', currentLoggedInUserId, '房主ID:', hostUserId);
+                        setupRoomNameEditing();
+                    } else {
+                        console.log('当前用户不是房主 - 当前用户ID:', currentLoggedInUserId, '房主ID:', hostUserId);
+                    }
+                    
                     startHeartbeat();
                 };
 
@@ -1544,15 +1546,12 @@
                                             addSystemMessageToChat(`${oldHostName} 已将直播间所有权转移给 ${newHostName}。`);
                                         });
 
-                                        // 更新房间名称编辑权限
                                         const roomNameContainer = $('#roomNameContainer');
                                         if (currentLoggedInUserId && currentLoggedInUserId === newHostId) {
-                                            // 新房主：移除旧的事件监听器并重新设置编辑功能
-                                            roomNameContainer.off('click').removeClass('cursor-pointer hover:bg-[var(--hover-bg)] px-2 py-1 rounded-md transition-colors');
                                             setupRoomNameEditing();
                                         } else {
-                                            // 失去房主权限：移除编辑功能
-                                            roomNameContainer.off('click').removeClass('cursor-pointer hover:bg-[var(--hover-bg)] px-2 py-1 rounded-md transition-colors');
+                                            roomNameContainer.off('click.roomNameEdit');
+                                            roomNameContainer.removeClass('cursor-pointer hover:bg-[var(--hover-bg)] px-2 py-1 rounded-md transition-colors');
                                             roomNameContainer.attr('title', $('#roomName').text() || '房间名称');
                                         }
 
@@ -1567,10 +1566,8 @@
                                         const newName = eventData.new_name;
                                         const updaterName = eventData.updater_name || '房主';
                                         
-                                        // 更新房间名称显示
                                         $('#roomName').text(newName).attr('title', newName);
                                         
-                                        // 显示系统消息
                                         addSystemMessageToChat(`${updaterName} 将房间名称更改为: ${newName}`);
                                         
                                         console.log('房间名称已更新为:', newName);
@@ -1663,22 +1660,24 @@
             initilizeWebSocketConnection();
 
             function setupRoomNameEditing() {
+                console.log('setupRoomNameEditing() 被调用');
                 const roomNameContainer = $('#roomNameContainer');
                 const roomNameSpan = $('#roomName');
 
-                // 添加悬浮样式和提示
+                roomNameContainer.off('click.roomNameEdit');
+                roomNameContainer.removeClass('cursor-pointer hover:bg-[var(--hover-bg)] px-2 py-1 rounded-md transition-colors');
+
                 roomNameContainer.addClass('cursor-pointer hover:bg-[var(--hover-bg)] px-2 py-1 rounded-md transition-colors');
                 roomNameContainer.attr('title', '点击修改房间名称（仅房主可用）');
 
                 let isEditing = false;
 
-                roomNameContainer.on('click', function(e) {
+                roomNameContainer.on('click.roomNameEdit', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
                     if (isEditing) return;
                     
-                    // 检查是否为房主
                     if (!currentLoggedInUserId || currentLoggedInUserId !== hostUserId) {
                         showWarningToast('只有房主可以修改房间名称');
                         return;
@@ -1687,10 +1686,8 @@
                     isEditing = true;
                     const currentName = roomNameSpan.text().trim();
                     
-                    // 隐藏原始容器
                     roomNameContainer.hide();
 
-                    // 创建编辑容器
                     const input = $('<input type="text" maxlength="50" class="text-sm bg-[var(--primary-bg)] border border-[var(--accent-color)] px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent min-w-[120px]">')
                         .val(currentName)
                         .attr('placeholder', '输入房间名称');
@@ -1706,7 +1703,6 @@
                     
                     roomNameContainer.after(editContainer);
                     
-                    // 聚焦并选中输入框内容
                     input.focus().select();
 
                     function closeEditor() {
@@ -1736,7 +1732,6 @@
                             return;
                         }
 
-                        // 禁用按钮，显示加载状态
                         saveBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>保存中...');
                         cancelBtn.prop('disabled', true);
                         input.prop('disabled', true);
@@ -1768,7 +1763,6 @@
 
                             const responseData = await response.json();
                             if (responseData.success) {
-                                // 更新房间名称显示
                                 roomNameSpan.text(newName).attr('title', newName);
                                 showSuccessToast('房间名称已更新');
                                 closeEditor();
@@ -1779,14 +1773,12 @@
                             console.error('更新房间名称失败:', error);
                             showErrorToast(`更新失败: ${error.message}`);
                             
-                            // 恢复按钮状态
                             saveBtn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i>保存');
                             cancelBtn.prop('disabled', false);
                             input.prop('disabled', false).focus();
                         }
                     }
 
-                    // 事件绑定
                     input.on('keydown', function(e) {
                         if (e.which === 13) { // Enter键
                             e.preventDefault();
@@ -1797,7 +1789,6 @@
                         }
                     });
 
-                    // 点击外部区域关闭编辑器
                     $(document).on('click.roomNameEditor', function(e) {
                         if (!editContainer.is(e.target) && editContainer.has(e.target).length === 0) {
                             closeEditor();
