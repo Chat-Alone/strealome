@@ -6,7 +6,7 @@ use crate::{
         jwt::Jwt,
         Response,
     },
-    service,
+    service::{self, room::RoomError},
 };
 
 use super::AppState;
@@ -22,17 +22,17 @@ pub async fn update_room_name(
     Path(room_id): Path<String>,
     Json(payload): Json<UpdateRoomNameReq>,
 ) -> impl IntoResponse {
-    match service::room::get_room_by_link(&room_id) {
-        Ok(room) => {
-            if room.host_id() != jwt.sub {
-                return (StatusCode::FORBIDDEN, "Only the host can change the room name").into_response();
-            }
+    let room = match service::room::get_room_by_link(&room_id) {
+        Ok(room) => room,
+        Err(e) => return Response::error(&e.to_string()).into_response(),
+    };
 
-            match service::room::change_room_name(&room_id, payload.name).await {
-                Ok(_) => Response::success::<()>(None).into_response(),
-                Err(e) => Response::from(e).into_response(),
-            }
-        }
-        Err(e) => Response::from(e).into_response(),
+    if room.host_id() != jwt.sub {
+        return (StatusCode::FORBIDDEN, "Only the host can change the room name").into_response();
+    }
+
+    match service::room::change_room_name(&room_id, payload.name).await {
+        Ok(_) => Response::success::<()>(None).into_response(),
+        Err(e) => Response::error(&e.to_string()).into_response(),
     }
 }
