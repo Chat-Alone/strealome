@@ -761,8 +761,9 @@
                 class="ml-2 bg-red-600 text-white px-1.5 py-0.5 rounded text-xs font-bold flex items-center whitespace-nowrap hidden sm:flex">
                 <span class="w-2 h-2 bg-white rounded-full inline-block animate-pulse mr-1"></span>LIVE
             </span>
-            <span id="roomName"
-                class="ml-2 text-sm text-[var(--text-secondary)] font-normal truncate max-w-[120px] sm:max-w-[200px]"></span>
+            <span id="roomNameContainer" class="ml-2 text-sm text-[var(--text-secondary)] font-normal truncate max-w-[120px] sm:max-w-[200px] relative">
+                <span id="roomName" class="truncate"></span>
+            </span>
         </div>
 
         <div class="flex items-center gap-1 sm:gap-4">
@@ -1398,9 +1399,14 @@
                     if (data.success && data.payload && data.payload.host_id !== undefined) {
                         hostUserId = data.payload.host_id;
                         if (data.payload.name) {
-                            $('#roomName').text(data.payload.name);
+                            $('#roomName').text(data.payload.name).attr('title', data.payload.name);
                         }
                         console.log('获取房间详情成功，主播ID:', hostUserId);
+
+                        // 如果当前用户是房主，则启用房间名修改功能
+                        if (currentLoggedInUserId && currentLoggedInUserId === hostUserId) {
+                            setupRoomNameEditing();
+                        }
                         return true;
                     } else {
                         console.error('获取房间详情失败:', data);
@@ -1623,6 +1629,74 @@
             }
 
             initilizeWebSocketConnection();
+
+            function setupRoomNameEditing() {
+                const roomNameContainer = $('#roomNameContainer');
+                const roomNameSpan = $('#roomName');
+
+                roomNameContainer.addClass('cursor-pointer hover:bg-[var(--hover-bg)] px-2 py-1 rounded-md');
+                roomNameContainer.attr('title', '点击修改房间标题');
+
+                roomNameContainer.on('click', function() {
+                    const currentName = roomNameSpan.text();
+                    roomNameContainer.hide();
+
+                    const input = $('<input type="text" class="w-full text-sm bg-transparent border-b border-[var(--accent-color)] focus:outline-none">').val(currentName);
+                    const saveBtn = $('<button class="ml-2 text-xs text-[var(--accent-color)] hover:underline">保存</button>');
+                    const cancelBtn = $('<button class="ml-2 text-xs text-[var(--text-secondary)] hover:underline">取消</button>');
+                    
+                    const editContainer = $('<div class="flex items-center"></div>').append(input, saveBtn, cancelBtn);
+                    roomNameContainer.after(editContainer);
+                    input.focus();
+
+                    function closeEditor() {
+                        editContainer.remove();
+                        roomNameContainer.show();
+                    }
+
+                    async function saveName() {
+                        const newName = input.val().trim();
+                        if (newName && newName !== currentName) {
+                            try {
+                                const response = await fetch(`/api/room/${currentRoomId}/name`, {
+                                    method: 'PUT',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Accept': 'application/json'
+                                    },
+                                    body: JSON.stringify({ name: newName })
+                                });
+
+                                if (!response.ok) {
+                                    const errorData = await response.json();
+                                    throw new Error(errorData.message || '更新失败');
+                                }
+
+                                roomNameSpan.text(newName).attr('title', newName);
+                                showSuccessToast('房间名称已更新');
+                            } catch (error) {
+                                showErrorToast(`更新失败: ${error.message}`);
+                            }
+                        }
+                        closeEditor();
+                    }
+
+                    input.on('keypress', function(e) {
+                        if (e.which === 13) saveName();
+                    });
+                    input.on('blur', function() {
+                        // 使用一个小的延迟来允许按钮点击事件触发
+                        setTimeout(() => {
+                            if (!editContainer.is(":focus-within")) {
+                                closeEditor();
+                            }
+                        }, 100);
+                    });
+
+                    saveBtn.on('click', saveName);
+                    cancelBtn.on('click', closeEditor);
+                });
+            }
 
             function initKeyboardNavigation() {
                 $('body').addClass('keyboard-navigation');

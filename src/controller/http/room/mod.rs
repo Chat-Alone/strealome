@@ -5,8 +5,9 @@ mod detail;
 pub mod user;
 mod user_list;
 mod transfer;
+mod name;
 
-use axum::Router;
+use axum::{Router, routing::{post, put}};
 use super::{AppState, Jwt, Response};
 use response::RoomResp;
 
@@ -18,6 +19,7 @@ pub fn route(path: &str) -> Router<AppState> {
         .merge(create::route("/create"))
         .merge(detail::route("/detail"))
         .merge(transfer::route("/transfer"))
+        .route("/:id/name", put(name::update_room_name))
         .merge(user_list::route("/user_list"));
     
     if path == "/" {
