@@ -19,7 +19,7 @@ pub fn route(path: &str) -> Router<AppState> {
         .merge(create::route("/create"))
         .merge(detail::route("/detail"))
         .merge(transfer::route("/transfer"))
-        .route("/:id/name", put(name::update_room_name))
+        .route("/{id}/name", put(name::update_room_name))
         .merge(user_list::route("/user_list"));
     
     if path == "/" {
