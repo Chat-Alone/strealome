@@ -1671,17 +1671,20 @@
                 roomNameContainer.attr('title', '点击修改房间名称（仅房主可用）');
 
                 let isEditing = false;
+                let isSaving = false;
 
                 roomNameContainer.on('click.roomNameEdit', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    if (isEditing) return;
+                    if (isEditing || isSaving) return;
                     
                     if (!currentLoggedInUserId || currentLoggedInUserId !== hostUserId) {
                         showWarningToast('只有房主可以修改房间名称');
                         return;
                     }
+
+                    $('.room-name-editor').remove();
 
                     isEditing = true;
                     const currentName = roomNameSpan.text().trim();
@@ -1698,7 +1701,7 @@
                     const cancelBtn = $('<button class="ml-1 px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus:outline-none">')
                         .html('<i class="fas fa-times mr-1"></i>取消');
                     
-                    const editContainer = $('<div class="flex items-center"></div>')
+                    const editContainer = $('<div class="flex items-center room-name-editor"></div>')
                         .append(input, saveBtn, cancelBtn);
                     
                     roomNameContainer.after(editContainer);
@@ -1710,9 +1713,12 @@
                         editContainer.remove();
                         roomNameContainer.show();
                         isEditing = false;
+                        isSaving = false;
                     }
 
                     async function saveName() {
+                        if (isSaving) return;
+                        
                         const newName = input.val().trim();
                         
                         if (!newName) {
@@ -1732,6 +1738,7 @@
                             return;
                         }
 
+                        isSaving = true;
                         saveBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>保存中...');
                         cancelBtn.prop('disabled', true);
                         input.prop('disabled', true);
@@ -1773,6 +1780,7 @@
                             console.error('更新房间名称失败:', error);
                             showErrorToast(`更新失败: ${error.message}`);
                             
+                            isSaving = false;
                             saveBtn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i>保存');
                             cancelBtn.prop('disabled', false);
                             input.prop('disabled', false).focus();
@@ -1782,15 +1790,19 @@
                     input.on('keydown', function(e) {
                         if (e.which === 13) { // Enter键
                             e.preventDefault();
-                            saveName();
+                            if (!isSaving) {
+                                saveName();
+                            }
                         } else if (e.which === 27) { // Esc键
                             e.preventDefault();
-                            closeEditor();
+                            if (!isSaving) {
+                                closeEditor();
+                            }
                         }
                     });
 
                     $(document).on('click.roomNameEditor', function(e) {
-                        if (!editContainer.is(e.target) && editContainer.has(e.target).length === 0) {
+                        if (!isSaving && !editContainer.is(e.target) && editContainer.has(e.target).length === 0) {
                             closeEditor();
                             $(document).off('click.roomNameEditor');
                         }
@@ -1798,13 +1810,17 @@
 
                     saveBtn.on('click', function(e) {
                         e.preventDefault();
-                        saveName();
+                        if (!isSaving) {
+                            saveName();
+                        }
                     });
                     
                     cancelBtn.on('click', function(e) {
                         e.preventDefault();
-                        closeEditor();
-                        $(document).off('click.roomNameEditor');
+                        if (!isSaving) {
+                            closeEditor();
+                            $(document).off('click.roomNameEditor');
+                        }
                     });
                 });
             }
