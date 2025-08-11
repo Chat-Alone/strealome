@@ -35,7 +35,6 @@ pub async fn update_room_name(
 
     match state.rooms.change_room_name(&room_id, payload.name.clone()).await {
         Ok(_) => {
-            // 获取用户信息以发送WebSocket事件
             if let Ok(user) = user::get_user_by_id(state.repository.clone(), jwt.sub).await {
                 let event = ChatEvent::room_name_updated(
                     payload.name.clone(),
@@ -43,7 +42,6 @@ pub async fn update_room_name(
                     user.name
                 );
                 
-                // 向房间内所有用户发送房间名称更新事件
                 if let Err(e) = room.sync_event(jwt.sub, event).await {
                     eprintln!("Failed to broadcast room name update event: {}", e);
                 }
