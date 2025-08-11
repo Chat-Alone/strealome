@@ -1672,12 +1672,28 @@
 
                 let isEditing = false;
                 let isSaving = false;
+                
+                // 确保UI状态一致性的函数
+                function ensureUIConsistency() {
+                    if (isEditing || isSaving) {
+                        roomNameContainer.hide();
+                    } else {
+                        roomNameContainer.show();
+                        $('.room-name-editor').remove();
+                    }
+                }
 
                 roomNameContainer.on('click.roomNameEdit', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
-                    if (isEditing || isSaving) return;
+                    // 首先确保UI状态一致
+                    ensureUIConsistency();
+                    
+                    // 强化检查：确保没有任何编辑器存在且不在保存状态
+                    if (isEditing || isSaving || $('.room-name-editor').length > 0) {
+                        return;
+                    }
                     
                     if (!currentLoggedInUserId || currentLoggedInUserId !== hostUserId) {
                         showWarningToast('只有房主可以修改房间名称');
@@ -1690,6 +1706,10 @@
                     const currentName = roomNameSpan.text().trim();
                     
                     roomNameContainer.hide();
+                    
+                    if ($('.room-name-editor').length > 0) {
+                        $('.room-name-editor').remove();
+                    }
 
                     const input = $('<input type="text" maxlength="50" class="text-sm bg-[var(--primary-bg)] border border-[var(--accent-color)] px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent min-w-[120px]">')
                         .val(currentName)
@@ -1706,14 +1726,18 @@
                     
                     roomNameContainer.after(editContainer);
                     
+                    ensureUIConsistency();
+                    
                     input.focus().select();
 
                     function closeEditor() {
                         if (!isEditing) return;
                         editContainer.remove();
-                        roomNameContainer.show();
+                        $(document).off('click.roomNameEditor');
                         isEditing = false;
                         isSaving = false;
+                        
+                        ensureUIConsistency();
                     }
 
                     async function saveName() {
@@ -1739,6 +1763,9 @@
                         }
 
                         isSaving = true;
+                        // 确保UI状态一致
+                        ensureUIConsistency();
+                        
                         saveBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>保存中...');
                         cancelBtn.prop('disabled', true);
                         input.prop('disabled', true);
@@ -1770,8 +1797,12 @@
 
                             const responseData = await response.json();
                             if (responseData.success) {
+                                // 更新显示的房间名称
                                 roomNameSpan.text(newName).attr('title', newName);
                                 showSuccessToast('房间名称已更新');
+                                
+                                // 确保在关闭编辑器前清理状态
+                                isSaving = false;
                                 closeEditor();
                             } else {
                                 throw new Error(responseData.message || '更新失败');
@@ -1781,6 +1812,8 @@
                             showErrorToast(`更新失败: ${error.message}`);
                             
                             isSaving = false;
+                            ensureUIConsistency();
+                            
                             saveBtn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i>保存');
                             cancelBtn.prop('disabled', false);
                             input.prop('disabled', false).focus();
