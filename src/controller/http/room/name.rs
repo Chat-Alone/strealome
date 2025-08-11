@@ -7,7 +7,8 @@ use serde::Deserialize;
 
 use crate::{
     controller::{jwt::Jwt, Response},
-    service::room,
+    service::{room, user},
+    model::chat::Event as ChatEvent,
 };
 
 use super::AppState;
@@ -32,8 +33,24 @@ pub async fn update_room_name(
         return Response::fail(StatusCode::FORBIDDEN, Some("Only the host can change the room name"));
     }
 
-    match state.rooms.change_room_name(&room_id, payload.name).await {
-        Ok(_) => Response::success::<()>(None),
+    match state.rooms.change_room_name(&room_id, payload.name.clone()).await {
+        Ok(_) => {
+            // 获取用户信息以发送WebSocket事件
+            if let Ok(user) = user::get_user_by_id(state.repository.clone(), jwt.sub).await {
+                let event = ChatEvent::room_name_updated(
+                    payload.name.clone(),
+                    jwt.sub,
+                    user.name
+                );
+                
+                // 向房间内所有用户发送房间名称更新事件
+                if let Err(e) = room.sync_event(jwt.sub, event).await {
+                    eprintln!("Failed to broadcast room name update event: {}", e);
+                }
+            }
+            
+            Response::success::<()>(None)
+        },
         Err(e) => e.into(),
     }
 }
