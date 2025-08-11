@@ -19,6 +19,7 @@ thread_local! {
 
 use thiserror::Error as ThisError;
 use tokio::task::JoinHandle;
+use crate::controller::Response;
 use crate::repository::Repository;
 use crate::service::user;
 
@@ -44,6 +45,12 @@ pub enum RoomError {
     UserError(#[from] user::UserError),
     #[error("Internal Error")]
     InternalError(String),
+}
+
+impl From<RoomError> for Response {
+    fn from(e: RoomError) -> Self {
+        Response::error(&e.to_string())
+    }
 }
 
 
