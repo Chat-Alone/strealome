@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Stream Alone</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -61,6 +61,8 @@
             --focus-ring: #3b82f6;
             --focus-ring-offset: #ffffff;
             --focus-shadow: rgba(59, 130, 246, 0.5);
+            --header-height: 60px;
+            --footer-height: 40px;
         }
 
         .dark {
@@ -85,8 +87,14 @@
             transition: all 0.2s ease;
             overflow: hidden;
             height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
 
         .font-geist-mono {
@@ -98,6 +106,76 @@
             display: inline-block;
             padding: 0.4rem;
             line-height: 1;
+        }
+
+        @media (max-width: 768px) {
+            #main-content {
+                height: calc(100vh - var(--header-height, 60px) - var(--footer-height, 40px));
+                height: calc(100dvh - var(--header-height, 60px) - var(--footer-height, 40px));
+                min-height: 0;
+            }
+            
+            .mobile-editing header > div:first-child > *:not(#roomNameContainer):not(.room-name-editor) {
+                display: none !important;
+            }
+            
+            .mobile-editing header > div:last-child {
+                display: none !important;
+            }
+            
+            .mobile-editing .room-name-editor {
+                width: 100%;
+                max-width: calc(100vw - 2rem);
+            }
+            
+            .mobile-editing .room-name-editor input {
+                flex: 1;
+                min-width: 0;
+                max-width: calc(100vw - 8rem);
+            }
+            
+            .mobile-editing .room-name-editor button {
+                padding: 0.5rem !important;
+                min-width: 2.5rem;
+                white-space: nowrap;
+            }
+            
+            .mobile-editing .room-name-editor button .button-text {
+                display: none;
+            }
+            
+            .mobile-editing .room-name-editor button i {
+                margin: 0 !important;
+            }
+            
+            .stream-container {
+                height: 40vh !important;
+                min-height: 200px;
+            }
+            
+            .chat-panel {
+                height: calc(60vh - var(--header-height, 60px) - var(--footer-height, 40px)) !important;
+                min-height: 200px;
+            }
+        }
+
+        @supports (height: 100dvh) {
+            body {
+                height: 100dvh;
+            }
+        }
+
+        @supports not (height: 100dvh) {
+            body {
+                height: calc(var(--vh, 1vh) * 100);
+            }
+        }
+
+        @supports (padding: max(0px)) {
+            body {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+            }
         }
 
         .message-text {
@@ -751,7 +829,8 @@
     </div>
 
     <header
-        class="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-solid border-[var(--border-color)] bg-[var(--primary-bg)]">
+        class="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-solid border-[var(--border-color)] bg-[var(--primary-bg)]"
+        style="height: var(--header-height); min-height: var(--header-height);">
         <div class="flex items-center">
             <h1 class="text-lg sm:text-xl font-semibold mr-1">
                 <span>Stream</span>
@@ -994,7 +1073,8 @@
     </div>
 
     <footer
-        class="py-2 px-4 text-xs text-[var(--text-secondary)] text-center border-t border-solid border-[var(--border-color)] mt-auto">
+        class="py-2 px-4 text-xs text-[var(--text-secondary)] text-center border-t border-solid border-[var(--border-color)] mt-auto"
+        style="height: var(--footer-height); min-height: var(--footer-height); display: flex; align-items: center; justify-content: center;">
         Stream Alone 2025 &copy; All rights reserved.
     </footer>
 
@@ -1711,15 +1791,23 @@
                         $('.room-name-editor').remove();
                     }
 
+                    // 检测是否为移动设备
+                    const isMobile = window.innerWidth <= 768;
+                    
                     const input = $('<input type="text" maxlength="50" class="text-sm bg-[var(--primary-bg)] border border-[var(--accent-color)] px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] focus:border-transparent min-w-[120px]">')
                         .val(currentName)
                         .attr('placeholder', '输入房间名称');
                     
                     const saveBtn = $('<button class="ml-2 px-2 py-1 text-xs bg-[var(--accent-color)] text-white rounded hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]">')
-                        .html('<i class="fas fa-check mr-1"></i>保存');
+                        .html(`<i class="fas fa-check ${isMobile ? '' : 'mr-1'}"></i>${isMobile ? '' : '<span class="button-text">保存</span>'}`);
                     
                     const cancelBtn = $('<button class="ml-1 px-2 py-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors focus:outline-none">')
-                        .html('<i class="fas fa-times mr-1"></i>取消');
+                        .html(`<i class="fas fa-times ${isMobile ? '' : 'mr-1'}"></i>${isMobile ? '' : '<span class="button-text">取消</span>'}`);
+                    
+                    // 如果是移动端，给body添加编辑状态类
+                    if (isMobile) {
+                        $('body').addClass('mobile-editing');
+                    }
                     
                     const editContainer = $('<div class="flex items-center room-name-editor"></div>')
                         .append(input, saveBtn, cancelBtn);
@@ -1736,6 +1824,8 @@
                         $(document).off('click.roomNameEditor');
                         isEditing = false;
                         isSaving = false;
+                        
+                        $('body').removeClass('mobile-editing');
                         
                         ensureUIConsistency();
                     }
@@ -1763,10 +1853,10 @@
                         }
 
                         isSaving = true;
-                        // 确保UI状态一致
                         ensureUIConsistency();
                         
-                        saveBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>保存中...');
+                        const savingText = isMobile ? '<i class="fas fa-spinner fa-spin"></i>' : '<i class="fas fa-spinner fa-spin mr-1"></i><span class="button-text">保存中...</span>';
+                        saveBtn.prop('disabled', true).html(savingText);
                         cancelBtn.prop('disabled', true);
                         input.prop('disabled', true);
 
@@ -1797,11 +1887,9 @@
 
                             const responseData = await response.json();
                             if (responseData.success) {
-                                // 更新显示的房间名称
                                 roomNameSpan.text(newName).attr('title', newName);
                                 showSuccessToast('房间名称已更新');
                                 
-                                // 确保在关闭编辑器前清理状态
                                 isSaving = false;
                                 closeEditor();
                             } else {
@@ -1814,7 +1902,8 @@
                             isSaving = false;
                             ensureUIConsistency();
                             
-                            saveBtn.prop('disabled', false).html('<i class="fas fa-check mr-1"></i>保存');
+                            const saveText = isMobile ? '<i class="fas fa-check"></i>' : '<i class="fas fa-check mr-1"></i><span class="button-text">保存</span>';
+                            saveBtn.prop('disabled', false).html(saveText);
                             cancelBtn.prop('disabled', false);
                             input.prop('disabled', false).focus();
                         }
@@ -2528,6 +2617,35 @@
                 console.log('💓');
                 setTimeout(sendPing, 1000);
             }
+        });
+
+        // 移动端视口高度动态适配
+        function updateViewportHeight() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+            
+            // 动态更新头部和底部高度
+            const header = document.querySelector('header');
+            const footer = document.querySelector('footer');
+            
+            if (header) {
+                const headerHeight = header.offsetHeight;
+                document.documentElement.style.setProperty('--header-height', `${headerHeight}px`);
+            }
+            
+            if (footer) {
+                const footerHeight = footer.offsetHeight;
+                document.documentElement.style.setProperty('--footer-height', `${footerHeight}px`);
+            }
+        }
+
+        // 初始化视口高度
+        updateViewportHeight();
+
+        // 监听窗口大小变化（包括地址栏显示/隐藏）
+        window.addEventListener('resize', updateViewportHeight);
+        window.addEventListener('orientationchange', () => {
+            setTimeout(updateViewportHeight, 100);
         });
 
     </script>
