@@ -1007,12 +1007,12 @@
             </header>
             <main class="flex-1 p-6 overflow-y-auto space-y-6">
                 <section class="border border-[var(--border-color)] rounded-lg p-4">
-                    <h3 class="text-md font-semibold text-[var(--text-primary)] mb-4">1. 关键信息</h3>
+                    <h3 class="text-md font-semibold text-[var(--text-primary)] mb-4">1. 推流信息</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-x-4 gap-y-3 items-center">
                         <label class="text-sm font-medium text-[var(--text-secondary)] sm:text-right">服务器 URL</label>
-                        <div data-copy="rtmp://stream.chatalone.asia/live" class="copy-block">
+                        <div id="serverUrl" data-copy="" class="copy-block">
                             <span
-                                class="font-geist-mono text-[var(--text-primary)] truncate">rtmp://stream.chatalone.asia/live</span>
+                                class="font-geist-mono text-[var(--text-primary)] truncate"></span>
                             <i class="fas fa-copy copy-icon"></i>
                         </div>
                         <label class="text-sm font-medium text-[var(--text-secondary)] sm:text-right">推流码 (Stream
@@ -1345,6 +1345,13 @@
 
             function openTutorialModal() {
                 const roomId = getRoomIdForTutorial();
+                
+                const hostname = window.location.hostname;
+                const serverUrl = `rtmp://${hostname}/live`;
+                const serverUrlEl = $('#serverUrl');
+                serverUrlEl.find('span').text(serverUrl);
+                serverUrlEl.attr('data-copy', serverUrl);
+                
                 const streamKeyEl = $('#streamKey');
                 if (roomId) {
                     streamKeyEl.find('span').text(roomId);
