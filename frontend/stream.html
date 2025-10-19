@@ -823,7 +823,6 @@
             <li><span>全屏/退出</span> <span class="key">F</span></li>
             <li><span>画中画</span> <span class="key">P</span></li>
             <li><span>音量+/-</span> <span class="key">↑/↓</span></li>
-            <li><span>播放/暂停</span> <span class="key">空格</span></li>
             <li><span>关闭提示</span> <span class="key">ESC</span></li>
         </ul>
     </div>
@@ -1127,6 +1126,7 @@
                 video = document.createElement('video');
                 video.id = 'streamVideo';
                 video.autoplay = true;
+                video.controls = false;
 
                 const lastMutedState = $('#muteBtn i').hasClass('fa-volume-mute');
                 const lastVolume = $('#volumeSlider').val() / 100;
@@ -1134,8 +1134,18 @@
                 video.volume = lastVolume;
 
                 video.playsInline = true;
-                video.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000';
+                video.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;pointer-events:none;';
                 $('#streamPlayer').empty().append(video);
+                
+                video.addEventListener('pause', function(e) {
+                    if (!video.ended) {
+                        video.play().catch(() => {});
+                    }
+                });
+                
+                video.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                });
 
                 rtc = new SrsRtcPlayerAsync();
                 rtc.ontrack = e => {
@@ -1986,11 +1996,6 @@
                     switch (e.key) {
                         case ' ':
                             e.preventDefault();
-                            if (video.paused) {
-                                video.play();
-                            } else {
-                                video.pause();
-                            }
                             break;
                         case 'f':
                         case 'F':
